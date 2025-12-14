@@ -60,7 +60,12 @@
       "Bash(done)",
       "Bash(nul)",
       "Bash(del nul 2)",
-      "Bash(timeout 5 ssh:*)"
+      "Bash(timeout 5 ssh:*)",
+      "Bash(findstr:*)",
+      "Bash(del test.exe 2)",
+      "Bash(del test.exe)",
+      "Bash(git reset:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

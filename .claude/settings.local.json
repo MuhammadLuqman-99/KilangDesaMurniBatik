@@ -76,7 +76,9 @@
       "Bash(find:*)",
       "Bash(npm install:*)",
       "Bash(ls:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []

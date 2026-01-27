@@ -27,36 +27,61 @@ git config --global user.email "Luqmandevops99@gmail.com"
 
 ---
 
-## Quick Deploy Commands
+## Safe Deploy Script (RECOMMENDED)
+
+Guna safe deploy script untuk pastikan `.env` credentials tidak hilang:
+
+### Pull All Repos (Safe)
+```bash
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh"
+```
+
+### Then Build & Deploy
+```bash
+# Deploy specific service
+ssh root@72.62.67.167 "cd /opt/kilang/infra-platform && docker compose build <service-name> && docker compose up -d --no-deps <service-name>"
+
+# Deploy all services
+ssh root@72.62.67.167 "cd /opt/kilang/infra-platform && docker compose build && docker compose up -d"
+```
+
+### One-liner Safe Deploy (specific service)
+```bash
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build <service-name> && docker compose up -d --no-deps <service-name>"
+```
+
+---
+
+## Quick Deploy Commands (Individual Services)
 
 ### Deploy Frontend Storefront (kilangdesamurnibatik.com)
 ```bash
-ssh root@72.62.67.167 "cd /opt/kilang/frontend-storefront && git pull origin main && cd ../infra-platform && docker compose build frontend-storefront && docker compose up -d --no-deps frontend-storefront"
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build frontend-storefront && docker compose up -d --no-deps frontend-storefront"
 ```
 
 ### Deploy Frontend Admin (admin.kilangdesamurnibatik.com)
 ```bash
-ssh root@72.62.67.167 "cd /opt/kilang/frontend-admin && git pull origin main && cd ../infra-platform && docker compose build frontend-admin && docker compose up -d --no-deps frontend-admin"
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build frontend-admin && docker compose up -d --no-deps frontend-admin"
 ```
 
 ### Deploy Service Catalog
 ```bash
-ssh root@72.62.67.167 "cd /opt/kilang/service-catalog && git pull origin main && cd ../infra-platform && docker compose build service-catalog && docker compose up -d --no-deps service-catalog"
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build service-catalog && docker compose up -d --no-deps service-catalog"
 ```
 
 ### Deploy Service Order
 ```bash
-ssh root@72.62.67.167 "cd /opt/kilang/service-order && git pull origin main && cd ../infra-platform && docker compose build service-order && docker compose up -d --no-deps service-order"
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build service-order && docker compose up -d --no-deps service-order"
 ```
 
 ### Deploy Service Inventory
 ```bash
-ssh root@72.62.67.167 "cd /opt/kilang/service-inventory && git pull origin main && cd ../infra-platform && docker compose build service-inventory && docker compose up -d --no-deps service-inventory"
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build service-inventory && docker compose up -d --no-deps service-inventory"
 ```
 
 ### Deploy All Services
 ```bash
-ssh root@72.62.67.167 "cd /opt/kilang/infra-platform && docker compose build && docker compose up -d"
+ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform && docker compose build && docker compose up -d"
 ```
 
 ---
@@ -192,3 +217,32 @@ docker compose restart postgres
 # Check postgres logs
 docker compose logs --tail=50 postgres
 ```
+
+---
+
+## Environment Credentials
+
+### Protected Credentials Location
+```
+/opt/kilang/infra-platform/.env              # Active config
+/opt/kilang/infra-platform/.env.backup.permanent  # Backup
+```
+
+### Configured Services
+| Service | Env Variables |
+|---------|---------------|
+| SF Express/ABX | `SFEXPRESS_APP_KEY`, `SFEXPRESS_APP_SECRET`, `SFEXPRESS_AES_KEY`, `SFEXPRESS_CUSTOMER_CODE` |
+| Curlec Payment | `CURLEC_KEY_ID`, `CURLEC_KEY_SECRET` |
+| Database | `POSTGRES_PASSWORD` |
+| JWT Auth | `JWT_SECRET` |
+| MinIO Storage | `MINIO_ROOT_PASSWORD` |
+
+### Restore Credentials (jika hilang)
+```bash
+ssh root@72.62.67.167 "cp /opt/kilang/infra-platform/.env.backup.permanent /opt/kilang/infra-platform/.env"
+```
+
+### IMPORTANT
+- `.env` file TIDAK tracked dalam git (selamat)
+- Guna `/opt/kilang/deploy.sh` untuk deploy (auto backup `.env`)
+- Jangan manual edit `.env.example` dengan secrets

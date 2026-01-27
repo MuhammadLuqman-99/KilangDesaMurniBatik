@@ -418,9 +418,10 @@
   │  └───────────────────────────────────────────────────────────────────┘  │
   │                                    │                                     │
   │  ┌───────────────────────────────────────────────────────────────────┐  │
-  │  │  internal/external/                                                │  │
-  │  │  ├── easyparcel_client.go  → Shipping API                         │  │
-  │  │  └── curlec_client.go      → Payment gateway                      │  │
+  │  │  internal/infrastructure/courier/sfexpress/                        │  │
+  │  │  ├── client.go             → SF Express API client                │  │
+  │  │  ├── types.go              → Request/Response types               │  │
+  │  │  └── mapper.go             → Data mapping                         │  │
   │  └───────────────────────────────────────────────────────────────────┘  │
   └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1024,7 +1025,7 @@
      │──────────────────────────▶│                            │
      │                           │                            │
      │                           │  6. GET shipping rates     │
-     │                           │───────────────────────────▶│ EasyParcel API
+     │                           │───────────────────────────▶│ SF Express (flat rate)
      │                           │                            │
      │  7. Display shipping      │                            │
      │     options               │                            │
@@ -1080,15 +1081,14 @@
 | LBN | W.P. Labuan |
 | PJY | W.P. Putrajaya |
 
-### 2.7.3 Shipping Methods (via EasyParcel)
+### 2.7.3 Shipping Methods (SF Express)
 
-| Courier | Service | Estimated Days | Price Range |
-|---------|---------|----------------|-------------|
-| J&T Express | Standard | 2-4 days | RM 6-15 |
-| Pos Laju | Next Day | 1-2 days | RM 8-20 |
-| DHL eCommerce | Standard | 3-5 days | RM 7-18 |
-| Ninja Van | Standard | 2-3 days | RM 6-15 |
-| City-Link | Express | 1-2 days | RM 10-25 |
+| Courier | Service | Estimated Days | Price |
+|---------|---------|----------------|-------|
+| SF Express | Standard | 1-3 hari bekerja | RM 8.00 |
+| Self Pickup | Ambil sendiri | - | FREE |
+
+**Note:** SF Express is the primary and only courier integrated. EasyParcel has been removed for simplified maintenance.
 
 ### 2.7.4 Payment Methods
 
@@ -1189,9 +1189,9 @@
     "postcode": "40000",
     "country": "MY"
   },
-  "shipping_method": "J&T Express",
-  "courier_service_id": "jt-standard",
-  "courier_name": "J&T Express",
+  "shipping_method": "SF Express",
+  "courier_service_id": "sfexpress",
+  "courier_name": "SF Express",
   "payment_method": "bank_transfer",
   "customer_notes": "Please call before delivery"
 }
@@ -1476,8 +1476,8 @@ Example: ORD202601210001
     └─ Preparing your order
 
   ✓ Order Shipped                          22 Jan 2026, 10:00 AM
-    └─ Tracking: JT123456789
-    └─ Courier: J&T Express
+    └─ Tracking: SF1234567890123
+    └─ Courier: SF Express
 
   ○ Out for Delivery                       (Pending)
 
@@ -2004,8 +2004,8 @@ The Tailoring module handles custom-made batik clothing orders where customers c
      │  5. Click "Ship Order"    │                            │
      │──────────────────────────▶│                            │
      │                           │                            │
-     │                           │  6. Request AWB from EasyParcel
-     │                           │───────────────────────────▶│ EasyParcel API
+     │                           │  6. Request AWB from SF Express
+     │                           │───────────────────────────▶│ SF Express API
      │                           │                            │
      │  7. Display shipping form │                            │
      │     with pre-filled info: │                            │
@@ -2047,10 +2047,10 @@ The Tailoring module handles custom-made batik clothing orders where customers c
 **Request:**
 ```json
 {
-  "courier_code": "jt",
-  "courier_name": "J&T Express",
-  "awb_number": "JT123456789",
-  "tracking_url": "https://www.jtexpress.my/tracking?no=JT123456789",
+  "courier_code": "sfexpress",
+  "courier_name": "SF Express",
+  "awb_number": "SF1234567890123",
+  "tracking_url": "https://www.sf-express.com/my/en/dynamic_function/waybill/#search/bill-number/SF1234567890123",
   "shipping_cost": 8.00,
   "weight": 0.5,
   "notes": "Package contains fragile items"
@@ -2066,10 +2066,10 @@ The Tailoring module handles custom-made batik clothing orders where customers c
       "id": "fulfillment-uuid",
       "order_id": "order-uuid",
       "status": "shipped",
-      "courier_code": "jt",
-      "courier_name": "J&T Express",
-      "awb_number": "JT123456789",
-      "tracking_url": "https://www.jtexpress.my/tracking?no=JT123456789",
+      "courier_code": "sfexpress",
+      "courier_name": "SF Express",
+      "awb_number": "SF1234567890123",
+      "tracking_url": "https://www.sf-express.com/my/en/dynamic_function/waybill/#search/bill-number/SF1234567890123",
       "label_url": "https://storage.../labels/label-uuid.pdf",
       "shipped_at": "2026-01-22T10:00:00Z"
     },
@@ -2237,30 +2237,35 @@ The Tailoring module handles custom-made batik clothing orders where customers c
 
 # PART 5: EXTERNAL INTEGRATIONS
 
-## 5.1 EasyParcel Integration (Shipping)
+## 5.1 SF Express Integration (Shipping)
 
-### 5.1.1 Get Shipping Rates
+SF Express (ABX Express) is the primary courier for Kilang Desa Murni Batik.
+
+### 5.1.1 Configuration
+
+**Environment Variables:**
+```
+SFEXPRESS_ENABLED=true
+SFEXPRESS_APP_KEY=<your_app_key>
+SFEXPRESS_APP_SECRET=<your_app_secret>
+SFEXPRESS_AES_KEY=<your_43_char_aes_key>
+SFEXPRESS_CUSTOMER_CODE=OSMYICRM-OSMYE00008787
+SFEXPRESS_PAY_MONTH_CARD=OSMYICRM-OSMYE00008787
+SFEXPRESS_PRODUCT_CODE=Y2
+SFEXPRESS_SANDBOX=false
+```
+
+### 5.1.2 Get Shipping Rates
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       EASYPARCEL: GET RATES                                  │
+│                       SF EXPRESS: GET RATES                                  │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  Order Service                                        EasyParcel API
+  Order Service                                        SF Express API
        │                                                    │
-       │  1. POST /api/v1/rate_checking                     │
-       │       {                                            │
-       │         "from_postcode": "68100",                  │
-       │         "to_postcode": "40000",                    │
-       │         "weight": 0.5,                             │
-       │         "length": 30,                              │
-       │         "width": 20,                               │
-       │         "height": 10                               │
-       │       }                                            │
-       │───────────────────────────────────────────────────▶│
-       │                                                    │
-       │  2. Response with available couriers               │
-       │◀───────────────────────────────────────────────────│
+       │  Flat rate pricing from database                   │
+       │  (SF Express uses fixed pricing)                   │
        │                                                    │
 ```
 
@@ -2269,38 +2274,43 @@ The Tailoring module handles custom-made batik clothing orders where customers c
 {
   "rates": [
     {
-      "service_id": "EP-CS0A7",
-      "courier_name": "J&T Express",
-      "service_name": "Standard",
+      "id": "sfexpress",
+      "serviceId": "sfexpress",
+      "name": "SF Express",
+      "description": "Penghantaran pantas ke seluruh Malaysia",
+      "courierName": "SF Express",
       "price": 8.00,
-      "estimated_delivery": "2-4 days"
+      "estimatedDays": "1-3 hari bekerja",
+      "provider": "sfexpress"
     },
     {
-      "service_id": "EP-CS0B3",
-      "courier_name": "Pos Laju",
-      "service_name": "Next Day",
-      "price": 12.00,
-      "estimated_delivery": "1-2 days"
+      "id": "pickup",
+      "name": "Ambil Sendiri",
+      "description": "Ambil di kedai Kilang Desa Murni Batik",
+      "price": 0,
+      "estimatedDays": "Ambil sendiri di kedai",
+      "provider": "self"
     }
   ]
 }
 ```
 
-### 5.1.2 Create AWB (Airway Bill)
+### 5.1.3 Create Consignment (AWB)
 
 ```
-Order Service                                        EasyParcel API
+Order Service                                        SF Express API
      │                                                    │
-     │  1. POST /api/v1/order_submit                      │
+     │  1. POST /EspServiceCode/createOrder               │
      │       {                                            │
-     │         "service_id": "EP-CS0A7",                  │
-     │         "sender": {...},                           │
-     │         "receiver": {...},                         │
-     │         "parcel": {...}                            │
+     │         "customerCode": "OSMYICRM-OSMYE00008787",  │
+     │         "interProductCode": "Y2",                  │
+     │         "senderInfo": {...},                       │
+     │         "receiverInfo": {...},                     │
+     │         "cargoInfo": {...}                         │
      │       }                                            │
      │───────────────────────────────────────────────────▶│
      │                                                    │
-     │  2. Response with AWB                              │
+     │  2. Response with Waybill Number                   │
      │◀───────────────────────────────────────────────────│
      │                                                    │
 ```
@@ -2308,10 +2318,22 @@ Order Service                                        EasyParcel API
 **Response:**
 ```json
 {
-  "order_number": "EP-20260121-0001",
-  "awb": "JT123456789",
-  "label_url": "https://easyparcel.com/labels/JT123456789.pdf",
-  "tracking_url": "https://www.jtexpress.my/tracking?no=JT123456789"
+  "waybillNo": "SF1234567890123",
+  "trackingUrl": "https://www.sf-express.com/my/en/dynamic_function/waybill/#search/bill-number/SF1234567890123"
+}
+```
+
+### 5.1.4 Sender Address (Store Default)
+
+```json
+{
+  "name": "Kilang Desa Murni Batik",
+  "phone": "0187624392",
+  "email": "dmbatikterengganu@gmail.com",
+  "address": "Lot 1089, Jalan Kelantan, Kampung Pulau Rusa",
+  "city": "Kuala Terengganu",
+  "state": "Terengganu",
+  "postcode": "20050"
 }
 ```
 
@@ -2409,7 +2431,7 @@ Order Service                                        EasyParcel API
 | Database Schemas | 18 |
 | Database Tables | 125 |
 | API Endpoints | 100+ |
-| External Integrations | 4 (EasyParcel, Curlec, Shopee, TikTok) |
+| External Integrations | 4 (SF Express, Curlec, Shopee, TikTok) |
 
 ## 6.2 Key URLs
 

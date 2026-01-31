@@ -52,6 +52,35 @@ ssh root@72.62.67.167 "/opt/kilang/deploy.sh && cd /opt/kilang/infra-platform &&
 
 ---
 
+## Direct Deploy (Fallback - Bila deploy.sh Gagal)
+
+Jika `deploy.sh` gagal sebab authentication issue, guna direct deploy:
+
+```bash
+# Pull specific repo dan deploy terus
+ssh root@72.62.67.167 "cd /opt/kilang/<service-name> && git pull origin main && cd /opt/kilang/infra-platform && docker compose build <service-name> && docker compose up -d --no-deps <service-name>"
+```
+
+### Contoh Direct Deploy:
+```bash
+# Frontend Admin
+ssh root@72.62.67.167 "cd /opt/kilang/frontend-admin && git pull origin main && cd /opt/kilang/infra-platform && docker compose build frontend-admin && docker compose up -d --no-deps frontend-admin"
+
+# Frontend Storefront
+ssh root@72.62.67.167 "cd /opt/kilang/frontend-storefront && git pull origin main && cd /opt/kilang/infra-platform && docker compose build frontend-storefront && docker compose up -d --no-deps frontend-storefront"
+
+# Service Catalog
+ssh root@72.62.67.167 "cd /opt/kilang/service-catalog && git pull origin main && cd /opt/kilang/infra-platform && docker compose build service-catalog && docker compose up -d --no-deps service-catalog"
+
+# Service Order
+ssh root@72.62.67.167 "cd /opt/kilang/service-order && git pull origin main && cd /opt/kilang/infra-platform && docker compose build service-order && docker compose up -d --no-deps service-order"
+
+# Service Marketplace
+ssh root@72.62.67.167 "cd /opt/kilang/service-marketplace && git pull origin main && cd /opt/kilang/infra-platform && docker compose build service-marketplace && docker compose up -d --no-deps service-marketplace"
+```
+
+---
+
 ## Quick Deploy Commands (Individual Services)
 
 ### Deploy Frontend Storefront (kilangdesamurnibatik.com)

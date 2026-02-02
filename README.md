@@ -1,422 +1,1052 @@
 # Kilang Desa Murni Batik
 
-> Enterprise-grade E-Commerce Platform for Traditional Malaysian Batik
+<div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.24-00ADD8?style=flat&logo=go)](https://golang.org)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)](https://nextjs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql)](https://postgresql.org)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://docker.com)
-[![NATS](https://img.shields.io/badge/NATS-JetStream-27AAE1?style=flat&logo=nats.io)](https://nats.io)
+### Enterprise E-Commerce Platform for Traditional Malaysian Batik
+
+[![Go](https://img.shields.io/badge/Go-1.24-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+[![NATS](https://img.shields.io/badge/NATS-JetStream-27AAE1?style=for-the-badge&logo=nats.io&logoColor=white)](https://nats.io)
+
+**A full-stack microservices platform built with Domain-Driven Design (DDD)**
+
+[Features](#-key-features) | [Architecture](#-system-architecture) | [How It Works](#-how-the-system-works) | [Tech Stack](#-tech-stack) | [Database](#-database-design)
+
+</div>
 
 ---
 
-## Overview
+## 📋 Table of Contents
 
-**Kilang Desa Murni Batik** is a full-stack microservices e-commerce platform designed specifically for selling traditional Malaysian Batik textiles. Built with **Domain-Driven Design (DDD)** principles and modern cloud-native technologies.
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [System Architecture](#-system-architecture)
+- [How The System Works](#-how-the-system-works)
+  - [Customer Order Flow](#1-customer-order-flow)
+  - [Payment Verification Flow](#2-payment-verification-flow)
+  - [Agent Commission Flow](#3-agent-commission-flow)
+  - [Inventory Management Flow](#4-inventory-management-flow)
+  - [Marketplace Sync Flow](#5-marketplace-sync-flow)
+- [Tech Stack](#-tech-stack)
+- [Domain-Driven Design](#-domain-driven-design-ddd)
+- [Database Design](#-database-design)
+- [API Documentation](#-api-documentation)
+- [Event-Driven Architecture](#-event-driven-architecture)
+- [Project Structure](#-project-structure)
 
-### What This System Does
+---
+
+## 🎯 Overview
+
+**Kilang Desa Murni Batik** is an enterprise-grade e-commerce platform designed specifically for selling traditional Malaysian Batik textiles. The platform serves multiple user types and integrates with major marketplaces.
+
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║     🏭  KILANG DESA MURNI BATIK - Malaysian Batik E-Commerce Platform        ║
+║                                                                               ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                               ║
+║     👥 CUSTOMERS        Browse catalog, add to cart, checkout, track orders  ║
+║                                                                               ║
+║     👔 ADMINISTRATORS   Manage products, process orders, verify payments     ║
+║                                                                               ║
+║     💼 SALES AGENTS     Earn commissions, track sales, request payouts       ║
+║                                                                               ║
+║     📦 WAREHOUSE        Manage inventory, process shipments, stock alerts    ║
+║                                                                               ║
+║     🛒 MARKETPLACES     Sync with Shopee & TikTok Shop automatically         ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
+### Business Problem Solved
+
+| Challenge | Solution |
+|-----------|----------|
+| Manual order processing | Automated order workflow with status tracking |
+| Payment verification delays | Digital receipt upload with admin verification dashboard |
+| Agent commission tracking | Automated commission calculation and payout management |
+| Multi-channel selling | Unified dashboard for Shopee & TikTok Shop integration |
+| Inventory discrepancies | Real-time stock reservation and alerts |
+
+---
+
+## ✨ Key Features
+
+### 1. Multi-Portal E-Commerce
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FOUR FRONTEND PORTALS                             │
+├─────────────────┬─────────────────┬─────────────────┬─────────────────────┤
+│   STOREFRONT    │     ADMIN       │     AGENT       │     WAREHOUSE       │
+│   (Customer)    │   (Back-office) │   (Sales Rep)   │    (Inventory)      │
+├─────────────────┼─────────────────┼─────────────────┼─────────────────────┤
+│ • Browse Catalog│ • Manage Orders │ • View Sales    │ • Stock Management  │
+│ • Shopping Cart │ • Product CRUD  │ • Commissions   │ • Order Fulfillment │
+│ • Checkout      │ • User Roles    │ • Payout Request│ • Shipping Labels   │
+│ • Order History │ • Analytics     │ • Team Stats    │ • Low Stock Alerts  │
+│ • Payment Upload│ • Payment Verify│ • Referral Links│ • Warehouse Zones   │
+└─────────────────┴─────────────────┴─────────────────┴─────────────────────┘
+```
+
+### 2. Role-Based Access Control (RBAC)
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PERMISSION MATRIX                                   │
+├─────────────────┬───────┬─────────┬───────┬───────┬───────────────────────┤
+│    Permission   │ Admin │ Manager │ Staff │ Agent │     Description       │
+├─────────────────┼───────┼─────────┼───────┼───────┼───────────────────────┤
+│ products.view   │   ✓   │    ✓    │   ✓   │   ✓   │ View product catalog  │
+│ products.create │   ✓   │    ✓    │   ✗   │   ✗   │ Add new products      │
+│ products.update │   ✓   │    ✓    │   ✗   │   ✗   │ Edit products         │
+│ products.delete │   ✓   │    ✗    │   ✗   │   ✗   │ Remove products       │
+├─────────────────┼───────┼─────────┼───────┼───────┼───────────────────────┤
+│ orders.view     │   ✓   │    ✓    │   ✓   │   ✓*  │ View orders (*own)    │
+│ orders.update   │   ✓   │    ✓    │   ✓   │   ✗   │ Update order status   │
+│ orders.cancel   │   ✓   │    ✓    │   ✗   │   ✗   │ Cancel orders         │
+├─────────────────┼───────┼─────────┼───────┼───────┼───────────────────────┤
+│ payments.verify │   ✓   │    ✓    │   ✗   │   ✗   │ Verify payment receipt│
+│ users.manage    │   ✓   │    ✗    │   ✗   │   ✗   │ Manage user accounts  │
+│ roles.manage    │   ✓   │    ✗    │   ✗   │   ✗   │ Manage roles/perms    │
+├─────────────────┼───────┼─────────┼───────┼───────┼───────────────────────┤
+│ reports.view    │   ✓   │    ✓    │   ✗   │   ✓*  │ View reports (*own)   │
+│ reports.export  │   ✓   │    ✓    │   ✗   │   ✗   │ Export reports        │
+└─────────────────┴───────┴─────────┴───────┴───────┴───────────────────────┘
+```
+
+### 3. Agent Commission System
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AGENT TIER SYSTEM                                    │
+├─────────────────┬──────────────┬──────────────┬────────────────────────────┤
+│      Tier       │  Commission  │ Sales Target │        Benefits            │
+├─────────────────┼──────────────┼──────────────┼────────────────────────────┤
+│  🥉 BRONZE      │     5%       │   RM 0+      │ Basic commission rate      │
+│  🥈 SILVER      │     7%       │   RM 5,000+  │ + Priority support         │
+│  🥇 GOLD        │    10%       │   RM 15,000+ │ + Exclusive products       │
+│  💎 PLATINUM    │    12%       │   RM 50,000+ │ + Team leadership bonus    │
+└─────────────────┴──────────────┴──────────────┴────────────────────────────┘
+```
+
+### 4. Multiple Payment Methods
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      SUPPORTED PAYMENT METHODS                              │
+├─────────────────┬─────────────────────────────────────────────────────────┤
+│  💳 FPX         │ Online banking (Maybank, CIMB, RHB, etc.)               │
+│  🏦 Bank Transfer│ Manual transfer with receipt upload                     │
+│  💵 Cash Deposit │ ATM/CDM deposit with receipt upload                     │
+│  🚚 COD          │ Cash on Delivery (selected areas)                       │
+└─────────────────┴─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🏗 System Architecture
+
+### High-Level Architecture
+
+```
+                              ┌─────────────────────────────────────┐
+                              │           CLOUDFLARE CDN            │
+                              │      (DDoS Protection + Cache)      │
+                              └──────────────────┬──────────────────┘
+                                                 │
+                                                 ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND LAYER                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Storefront  │  │   Admin     │  │   Agent     │  │  Warehouse  │        │
+│  │  Next.js    │  │  Next.js    │  │  Next.js    │  │  Next.js    │        │
+│  │  Port 3000  │  │  Port 3001  │  │  Port 3002  │  │  Port 3003  │        │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+└─────────┼────────────────┼────────────────┼────────────────┼────────────────┘
+          │                │                │                │
+          └────────────────┴────────────────┴────────────────┘
+                                    │
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           API GATEWAY (NGINX)                                │
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  • SSL/TLS Termination    • Rate Limiting    • Load Balancing       │   │
+│   │  • Request Routing        • CORS Handling    • Compression          │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   Route Mapping:                                                             │
+│   /api/v1/auth/*        → service-auth:8001                                 │
+│   /api/v1/products/*    → service-catalog:8002                              │
+│   /api/v1/orders/*      → service-order:8003                                │
+│   /api/v1/agents/*      → service-agent:8004                                │
+│   /api/v1/inventory/*   → service-inventory:8005                            │
+│   /api/v1/marketplace/* → service-marketplace:8006                          │
+│   /storage/*            → minio:9000                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           BACKEND SERVICES                                   │
+│                                                                              │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
+│  │    Auth      │ │   Catalog    │ │    Order     │ │    Agent     │       │
+│  │   Service    │ │   Service    │ │   Service    │ │   Service    │       │
+│  │    (Go)      │ │    (Go)      │ │    (Go)      │ │    (Go)      │       │
+│  │  Port 8001   │ │  Port 8002   │ │  Port 8003   │ │  Port 8004   │       │
+│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘       │
+│         │                │                │                │                │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
+│  │  Inventory   │ │ Marketplace  │ │ Notification │ │  Reporting   │       │
+│  │   Service    │ │   Service    │ │   Service    │ │   Service    │       │
+│  │    (Go)      │ │    (Go)      │ │    (Go)      │ │    (Go)      │       │
+│  │  Port 8005   │ │  Port 8006   │ │  Port 8007   │ │  Port 8008   │       │
+│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘       │
+│         │                │                │                │                │
+│  ┌──────────────┐ ┌──────────────┐                                          │
+│  │   Customer   │ │   Support    │                                          │
+│  │   Service    │ │   Service    │                                          │
+│  │    (Go)      │ │    (Go)      │                                          │
+│  │  Port 8009   │ │  Port 8010   │                                          │
+│  └──────┬───────┘ └──────┬───────┘                                          │
+└─────────┼────────────────┼──────────────────────────────────────────────────┘
+          │                │
+          └────────────────┴────────────────┐
+                                            │
+                                            ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           DATA & MESSAGING LAYER                             │
+│                                                                              │
+│  ┌─────────────────────────┐        ┌─────────────────────────┐             │
+│  │      PostgreSQL 16      │        │     NATS JetStream      │             │
+│  │                         │        │                         │             │
+│  │  • 18 Schemas           │        │  • Event Publishing     │             │
+│  │  • 125+ Tables          │        │  • Message Queuing      │             │
+│  │  • Full-text Search     │        │  • At-least-once        │             │
+│  │  • JSON/JSONB Support   │        │  • Persistence          │             │
+│  └─────────────────────────┘        └─────────────────────────┘             │
+│                                                                              │
+│  ┌─────────────────────────┐        ┌─────────────────────────┐             │
+│  │       MinIO (S3)        │        │    Redis (Optional)     │             │
+│  │                         │        │                         │             │
+│  │  • Product Images       │        │  • Session Cache        │             │
+│  │  • Payment Receipts     │        │  • Rate Limiting        │             │
+│  │  • Documents            │        │  • Real-time Data       │             │
+│  └─────────────────────────┘        └─────────────────────────┘             │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Service Communication
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           KILANG DESA MURNI BATIK                           │
-│                    Malaysian Batik E-Commerce Platform                       │
+│                    SERVICE COMMUNICATION PATTERNS                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   SYNCHRONOUS (REST API)              ASYNCHRONOUS (NATS Events)           │
+│   ━━━━━━━━━━━━━━━━━━━━━━              ━━━━━━━━━━━━━━━━━━━━━━━━━━           │
+│                                                                             │
+│   ┌─────────┐  HTTP   ┌─────────┐    ┌─────────┐ publish ┌─────────┐      │
+│   │ Frontend│ ──────► │  NGINX  │    │  Order  │ ──────► │  NATS   │      │
+│   └─────────┘         └────┬────┘    │ Service │         │JetStream│      │
+│                            │         └─────────┘         └────┬────┘      │
+│                            ▼                                  │            │
+│                     ┌─────────────┐                          │            │
+│                     │   Service   │            subscribe     │            │
+│                     └─────────────┘         ┌────────────────┼──────┐     │
+│                                             │                │      │     │
+│                                             ▼                ▼      ▼     │
+│                                        ┌────────┐   ┌──────────┐ ┌─────┐  │
+│                                        │Inventory│  │Notification│ │Agent│  │
+│                                        └────────┘   └──────────┘ └─────┘  │
+│                                                                             │
+│   Use Cases:                          Use Cases:                           │
+│   • User authentication               • Order status changes               │
+│   • Product queries                   • Stock level updates                │
+│   • Order creation                    • Commission calculations            │
+│   • Direct API calls                  • Email/SMS notifications            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔄 How The System Works
+
+### 1. Customer Order Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CUSTOMER ORDER FLOW                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  ✓ Customers    → Browse and buy Batik products online
-  ✓ Admins       → Manage products, orders, customers, and reports
-  ✓ Agents       → Sell products with commission tracking & payouts
-  ✓ Warehouse    → Manage stock, inventory, and ship orders
-  ✓ Marketplaces → Sync with Shopee and TikTok Shop
+    CUSTOMER                    SYSTEM                         BACKEND
+    ════════                    ══════                         ═══════
+
+    ┌─────────┐
+    │ Browse  │
+    │ Products│
+    └────┬────┘
+         │
+         │ 1. View catalog
+         ├──────────────────────►  service-catalog
+         │                         ┌─────────────────┐
+         │◄────────────────────────│ Return products │
+         │                         │ with stock info │
+         │                         └─────────────────┘
+    ┌────▼────┐
+    │ Add to  │
+    │  Cart   │
+    └────┬────┘
+         │
+         │ 2. Store in localStorage/session
+         │
+    ┌────▼────┐
+    │Checkout │
+    │  Page   │
+    └────┬────┘
+         │
+         │ 3. Submit order
+         ├──────────────────────►  service-order
+         │                         ┌─────────────────────────────────┐
+         │                         │ a. Validate cart items          │
+         │                         │ b. Check stock availability     │──► service-inventory
+         │                         │ c. Reserve stock                │
+         │                         │ d. Calculate totals             │
+         │                         │ e. Create order record          │
+         │                         │ f. Publish ORDER_CREATED event  │──► NATS
+         │◄────────────────────────│ g. Return order confirmation    │
+         │                         └─────────────────────────────────┘
+    ┌────▼────┐
+    │ Order   │
+    │Confirmed│                          NATS Events Triggered:
+    │ Page    │                          ─────────────────────
+    └────┬────┘                          • order.created
+         │                               • inventory.stock.reserved
+         │                               • notification.order.confirmation
+         │
+    ┌────▼────┐
+    │ Upload  │
+    │ Payment │ ─────────────────► (See Payment Flow below)
+    │ Receipt │
+    └─────────┘
+
+
+    ORDER STATUS LIFECYCLE:
+    ━━━━━━━━━━━━━━━━━━━━━━
+
+    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+    │ PENDING  │───►│  PAID    │───►│PROCESSING│───►│ SHIPPED  │───►│DELIVERED │
+    └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
+         │                                               │
+         │                                               │
+         ▼                                               ▼
+    ┌──────────┐                                   ┌──────────┐
+    │CANCELLED │                                   │ RETURNED │
+    └──────────┘                                   └──────────┘
+```
+
+### 2. Payment Verification Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      PAYMENT VERIFICATION FLOW                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    CUSTOMER                   ADMIN                         SYSTEM
+    ════════                   ═════                         ══════
+
+    ┌───────────────┐
+    │ Select Payment│
+    │    Method     │
+    │ (Bank Transfer)│
+    └───────┬───────┘
+            │
+            │  1. Show bank details
+            │     Account: XXX-XXXX-XXXX
+            │     Bank: Maybank
+            │
+    ┌───────▼───────┐
+    │  Make Payment │
+    │   (via ATM/   │
+    │ Online Banking)│
+    └───────┬───────┘
+            │
+            │  2. Take screenshot/photo of receipt
+            │
+    ┌───────▼───────┐
+    │ Upload Receipt│
+    │   + Details   │
+    │ ┌───────────┐ │
+    │ │ Amount    │ │
+    │ │ Date      │ │
+    │ │ Reference │ │
+    │ │ Bank Name │ │
+    │ └───────────┘ │
+    └───────┬───────┘
+            │
+            │  3. POST /api/v1/payments/upload-receipt
+            ├─────────────────────────────────────────────────► service-order
+            │                                                   ┌─────────────────────┐
+            │                                                   │ • Save receipt image│
+            │                                                   │   to MinIO storage  │
+            │                                                   │ • Create payment    │
+            │                                                   │   record (PENDING)  │
+            │◄──────────────────────────────────────────────────│ • Notify admin      │
+            │                                                   └─────────────────────┘
+    ┌───────▼───────┐
+    │ Receipt Status│
+    │   PENDING     │
+    │  ⏳ Waiting   │
+    └───────────────┘
+                                    ┌────────────────┐
+                                    │ Admin Dashboard│
+                                    │ ┌────────────┐ │
+                                    │ │🔔 New      │ │
+                                    │ │  Receipts  │ │
+                                    │ │  (5)       │ │
+                                    │ └────────────┘ │
+                                    └───────┬────────┘
+                                            │
+                                            │  4. View receipt details
+                                            │
+                                    ┌───────▼────────┐
+                                    │ Verify Receipt │
+                                    │ ┌────────────┐ │
+                                    │ │ [IMAGE]    │ │
+                                    │ │            │ │
+                                    │ │ Amount: RM │ │
+                                    │ │ Date: ...  │ │
+                                    │ │ Ref: ...   │ │
+                                    │ └────────────┘ │
+                                    │                │
+                                    │ [✓ Verify]    │
+                                    │ [✗ Reject]    │
+                                    └───────┬────────┘
+                                            │
+                                            │  5. PUT /api/v1/admin/payments/:id/verify
+                                            ├─────────────────────────────────► service-order
+                                            │                                   ┌──────────────────┐
+                                            │                                   │ • Update payment │
+                                            │                                   │   status:VERIFIED│
+                                            │                                   │ • Update order   │
+                                            │                                   │   status: PAID   │
+                                            │                                   │ • Trigger events │
+                                            │◄──────────────────────────────────│ • Notify customer│
+                                            │                                   └──────────────────┘
+
+            │
+    ┌───────▼───────┐
+    │ Receipt Status│
+    │   VERIFIED ✓  │
+    │  Order: PAID  │
+    └───────────────┘
+
+
+    RECEIPT STATUS:
+    ━━━━━━━━━━━━━━━
+
+    ┌──────────┐    Admin Action    ┌──────────┐
+    │ PENDING  │───────────────────►│ VERIFIED │ ──► Order becomes PAID
+    └──────────┘         │          └──────────┘
+                         │
+                         │          ┌──────────┐
+                         └─────────►│ REJECTED │ ──► Customer re-upload
+                                    └──────────┘
+```
+
+### 3. Agent Commission Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AGENT COMMISSION FLOW                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    AGENT                      CUSTOMER                      SYSTEM
+    ═════                      ════════                      ══════
+
+    ┌─────────────┐
+    │ Generate    │
+    │ Referral    │
+    │ Link        │
+    └──────┬──────┘
+           │
+           │  1. GET /api/v1/agent/referral-link
+           ├───────────────────────────────────────────────► service-agent
+           │                                                 ┌────────────────────┐
+           │◄────────────────────────────────────────────────│ https://store.com/ │
+           │                                                 │ ?ref=AGENT_CODE    │
+           │                                                 └────────────────────┘
+    ┌──────▼──────┐
+    │ Share Link  │
+    │ (WhatsApp,  │──────────────────────────►  ┌─────────────┐
+    │  Social)    │                             │  Customer   │
+    └─────────────┘                             │  clicks     │
+                                                │  link       │
+                                                └──────┬──────┘
+                                                       │
+                                                       │  2. Visit store with ?ref=AGENT_CODE
+                                                       │     (Ref code stored in cookie)
+                                                       │
+                                                ┌──────▼──────┐
+                                                │   Browse    │
+                                                │   & Shop    │
+                                                └──────┬──────┘
+                                                       │
+                                                       │  3. Complete purchase
+                                                       ├───────────────────► service-order
+                                                       │                     ┌──────────────────┐
+                                                       │                     │ • Create order   │
+                                                       │                     │ • Attach agent   │
+                                                       │                     │ • Publish event  │
+                                                       │                     └────────┬─────────┘
+                                                       │                              │
+                                                       │                              │ order.created
+                                                       │                              ▼
+                                                       │                     ┌──────────────────┐
+                                                       │                     │  service-agent   │
+                                                       │                     ├──────────────────┤
+                                                       │                     │ 4. Calculate     │
+                                                       │                     │    commission:   │
+                                                       │                     │                  │
+                                                       │                     │    Order: RM 500 │
+                                                       │                     │    Tier: GOLD    │
+                                                       │                     │    Rate: 10%     │
+                                                       │                     │    ───────────   │
+                                                       │                     │    = RM 50       │
+                                                       │                     └──────────────────┘
+
+                     LATER (when order is delivered):
+                     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                                                       │  order.delivered event
+                                                       ▼
+                                             ┌──────────────────┐
+                                             │  service-agent   │
+                                             ├──────────────────┤
+                                             │ Update commission│
+                                             │ status: APPROVED │
+                                             └──────────────────┘
+
+    ┌─────────────┐
+    │ Agent       │
+    │ Dashboard   │
+    │ ┌─────────┐ │
+    │ │Pending  │ │
+    │ │RM 50    │ │
+    │ │         │ │
+    │ │Approved │ │
+    │ │RM 500   │ │
+    │ └─────────┘ │
+    └──────┬──────┘
+           │
+           │  7. Request payout
+           │
+    ┌──────▼──────┐
+    │ Payout      │
+    │ Request     │──────────────────────────► service-agent
+    │ Created     │                            ┌──────────────────┐
+    └─────────────┘                            │ Create payout    │
+                                               │ Status: PENDING  │
+                                               │                  │
+                                               │ Admin processes  │
+                                               │ bank transfer    │
+                                               │                  │
+                                               │ Mark: COMPLETED  │
+                                               └──────────────────┘
+
+
+    COMMISSION STATUS FLOW:
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    ┌──────────┐  order.delivered  ┌──────────┐  payout  ┌──────────┐
+    │ PENDING  │──────────────────►│ APPROVED │─────────►│   PAID   │
+    └──────────┘                   └──────────┘          └──────────┘
+         │
+         │ order.cancelled
+         ▼
+    ┌──────────┐
+    │CANCELLED │
+    └──────────┘
+```
+
+### 4. Inventory Management Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      INVENTORY MANAGEMENT FLOW                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              STOCK LEVELS
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                                                                         │
+    │    AVAILABLE          RESERVED           SOLD            TOTAL          │
+    │    ═════════          ════════           ════            ═════          │
+    │                                                                         │
+    │    Stock that         Stock held         Stock that      Physical       │
+    │    can be sold        for pending        has been        stock in       │
+    │                       orders             sold            warehouse      │
+    │                                                                         │
+    │    Formula: AVAILABLE = TOTAL - RESERVED - SOLD                         │
+    │                                                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+
+    STOCK RESERVATION FLOW:
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    Customer Checkout                 service-inventory               Database
+    ═════════════════                 ═════════════════               ════════
+
+    ┌─────────────────┐
+    │ Place Order     │
+    │ (5 items)       │
+    └────────┬────────┘
+             │
+             │  1. Reserve stock
+             ├─────────────────────►  ┌─────────────────────────┐
+             │                        │ Check availability:      │
+             │                        │ Available: 100           │
+             │                        │ Requested: 5             │
+             │                        │ ✓ Sufficient stock       │
+             │                        └────────────┬─────────────┘
+             │                                     │
+             │                                     │  2. UPDATE stock
+             │                                     ├──────────────► ┌────────────┐
+             │                                     │                │ available: │
+             │                                     │                │ 100 → 95   │
+             │                                     │                │            │
+             │                                     │                │ reserved:  │
+             │                                     │                │ 0 → 5      │
+             │                                     │                └────────────┘
+             │                                     │
+             │◄────────────────────────────────────│  3. Publish event
+             │                                     │     inventory.stock.reserved
+    ┌────────▼────────┐
+    │ Order Confirmed │
+    │ (Stock Reserved)│
+    └─────────────────┘
+
+
+    LOW STOCK ALERT:
+    ━━━━━━━━━━━━━━━━
+
+                                             ┌─────────────────────────┐
+                                             │   Reorder Point: 10     │
+                                             └─────────────────────────┘
+                                                        │
+    ┌─────────┐   Stock: 50   ┌─────────┐   Stock: 8   ┌─────▼─────┐
+    │ NORMAL  │──────────────►│ NORMAL  │─────────────►│   LOW     │
+    │  (>10)  │               │  (>10)  │              │  STOCK    │
+    └─────────┘               └─────────┘              │   (≤10)   │
+                                                       └─────┬─────┘
+                                                             │
+                                                             │ Trigger:
+                                                             │ inventory.stock.low
+                                                             ▼
+                                                   ┌─────────────────────────┐
+                                                   │  service-notification   │
+                                                   │  • Email to admin       │
+                                                   │  • Dashboard alert      │
+                                                   └─────────────────────────┘
+```
+
+### 5. Marketplace Sync Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       MARKETPLACE SYNC FLOW                                 │
+│                    (Shopee & TikTok Shop Integration)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+    PRODUCT SYNC (Admin → Marketplace):
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    Admin Portal              service-marketplace           External API
+    ════════════              ═══════════════════           ════════════
+
+    ┌─────────────────┐
+    │ Select Products │
+    │ to Sync         │
+    │ ┌─────────────┐ │
+    │ │☑ Batik A    │ │
+    │ │☑ Batik B    │ │
+    │ │☐ Batik C    │ │
+    │ └─────────────┘ │
+    │                 │
+    │ Platform: Shopee│
+    │ [Sync Now]      │
+    └────────┬────────┘
+             │
+             │  POST /api/v1/admin/marketplace/sync
+             │
+             ├─────────────────────►  ┌─────────────────────────────┐
+             │                        │ 1. Get product details      │
+             │                        │                             │
+             │                        │ 2. Transform to Shopee      │
+             │                        │    format                   │
+             │                        │    • Map categories         │
+             │                        │    • Convert images         │
+             │                        └──────────────┬──────────────┘
+             │                                       │
+             │                                       │  Shopee API
+             │                                       ├─────────────► ┌──────────┐
+             │                                       │               │  SHOPEE  │
+             │                                       │◄──────────────│ Created  │
+             │                                       │               └──────────┘
+             │                        ┌──────────────▼──────────────┐
+             │                        │ 3. Store mapping:           │
+             │◄───────────────────────│    internal ↔ shopee_id     │
+             │                        └─────────────────────────────┘
+    ┌────────▼────────┐
+    │ Sync Complete   │
+    │ ✓ 2 products    │
+    └─────────────────┘
+
+
+    ORDER SYNC (Marketplace → Admin):
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ┌──────────────┐
+    │   SHOPEE     │
+    │ New Order    │
+    └──────┬───────┘
+           │
+           │  Webhook
+           ├─────────────────────►  ┌─────────────────────────────┐
+           │                        │ 1. Validate webhook         │
+           │                        │ 2. Parse order data         │
+           │                        │ 3. Create internal order    │
+           │                        │ 4. Store order mapping      │
+           │                        └──────────────┬──────────────┘
+           │                                       │
+           │                        ┌──────────────▼──────────────┐
+           │                        │ Admin Dashboard             │
+           │                        │ ┌─────────────────────────┐ │
+           │                        │ │ NEW ORDERS              │ │
+           │                        │ │ ─────────────────────── │ │
+           │                        │ │ #ORD-001 (Website)      │ │
+           │                        │ │ #ORD-002 (Shopee) 🛒    │ │
+           │                        │ │ #ORD-003 (TikTok) 🎵    │ │
+           │                        │ └─────────────────────────┘ │
+           │                        └─────────────────────────────┘
+
+
+    INVENTORY SYNC (Bidirectional):
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                                                                         │
+    │    ┌─────────────────┐                                                  │
+    │    │ Stock Changed   │                                                  │
+    │    │ Batik A: 50→45  │                                                  │
+    │    └────────┬────────┘                                                  │
+    │             │                                                           │
+    │             │  inventory.stock.updated                                  │
+    │             ▼                                                           │
+    │    ┌────────────────────────────────────────────┐                      │
+    │    │         Sync to All Marketplaces          │                      │
+    │    │                                            │                      │
+    │    │    ┌──────────┐         ┌──────────┐      │                      │
+    │    │    │  SHOPEE  │         │  TIKTOK  │      │                      │
+    │    │    │ Stock:45 │         │ Stock:45 │      │                      │
+    │    │    └──────────┘         └──────────┘      │                      │
+    │    │                                            │                      │
+    │    └────────────────────────────────────────────┘                      │
+    │                                                                         │
+    │    Result: Stock synchronized across all channels                       │
+    │                                                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## System Architecture
+## 🛠 Tech Stack
 
-```
-                    ┌──────────────────────────────────────────┐
-                    │              FRONTEND APPS               │
-                    ├──────────┬──────────┬──────────┬────────┤
-                    │Storefront│  Admin   │  Agent   │Warehouse│
-                    │(Next.js) │(Next.js) │(Next.js) │(Next.js)│
-                    └────┬─────┴────┬─────┴────┬─────┴────┬────┘
-                         │          │          │          │
-                         └──────────┴──────────┴──────────┘
-                                        │
-                                        ▼
-                    ┌──────────────────────────────────────────┐
-                    │           NGINX (API Gateway)            │
-                    │         Load Balancer + SSL/TLS          │
-                    └──────────────────┬───────────────────────┘
-                                       │
-        ┌──────────────┬───────────────┼───────────────┬──────────────┐
-        │              │               │               │              │
-        ▼              ▼               ▼               ▼              ▼
-  ┌──────────┐  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-  │   Auth   │  │ Catalog  │   │  Order   │   │  Agent   │   │Inventory │
-  │ Service  │  │ Service  │   │ Service  │   │ Service  │   │ Service  │
-  └────┬─────┘  └────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘
-       │             │              │              │              │
-       └─────────────┴──────────────┼──────────────┴──────────────┘
-                                    │
-                    ┌───────────────┴───────────────┐
-                    │                               │
-                    ▼                               ▼
-          ┌─────────────────┐            ┌─────────────────┐
-          │   PostgreSQL    │            │  NATS JetStream │
-          │   (Database)    │            │  (Event Bus)    │
-          └─────────────────┘            └─────────────────┘
-```
+### Backend Services
 
----
+| Service | Port | Technology | Description |
+|---------|------|------------|-------------|
+| `service-auth` | 8001 | Go + Gin | Authentication, JWT, RBAC |
+| `service-catalog` | 8002 | Go + Gin | Products, Categories, Variants |
+| `service-order` | 8003 | Go + Gin | Orders, Payments, Shipping |
+| `service-agent` | 8004 | Go + Gin | Commissions, Payouts, Tiers |
+| `service-inventory` | 8005 | Go + Gin | Stock, Warehouses |
+| `service-marketplace` | 8006 | Go + Gin | Shopee & TikTok |
+| `service-notification` | 8007 | Go + Gin | Email, SMS, Push |
+| `service-reporting` | 8008 | Go + Gin | Analytics, Reports |
+| `service-customer` | 8009 | Go + Gin | Profiles, Addresses |
+| `service-support` | 8010 | Go + Gin | Tickets, FAQ |
 
-## Tech Stack
+### Frontend Applications
 
-### Backend Services (Go 1.24)
-
-| Service | Description | Key Features |
-|---------|-------------|--------------|
-| `service-auth` | Authentication & Authorization | JWT, RBAC, OAuth2, Session Management |
-| `service-catalog` | Product Management | Products, Categories, Variants, Images |
-| `service-order` | Order Processing | Orders, Payments, Receipts, Verification |
-| `service-agent` | Agent Management | Commission Tracking, Payouts, Tiers |
-| `service-inventory` | Stock Management | Stock Levels, Reservations, Alerts |
-| `service-customer` | Customer Management | Profiles, Addresses, History |
-| `service-marketplace` | Multi-Channel | Shopee & TikTok Shop Integration |
-| `service-notification` | Notifications | Email, SMS, Push Notifications |
-| `service-reporting` | Analytics | Sales Reports, Dashboard Metrics |
-| `service-support` | Customer Support | Tickets, FAQ, Live Chat |
-
-### Frontend Applications (Next.js 14)
-
-| Application | Description | Users |
-|-------------|-------------|-------|
-| `frontend-storefront` | Customer-facing store | Public customers |
-| `frontend-admin` | Back-office management | Administrators |
-| `frontend-agent` | Agent portal | Sales agents |
-| `frontend-warehouse` | Inventory management | Warehouse staff |
+| Application | Port | Technology | Users |
+|-------------|------|------------|-------|
+| `frontend-storefront` | 3000 | Next.js 14 | Customers |
+| `frontend-admin` | 3001 | Next.js 14 | Administrators |
+| `frontend-agent` | 3002 | Next.js 14 | Sales Agents |
+| `frontend-warehouse` | 3003 | Next.js 14 | Warehouse Staff |
 
 ### Infrastructure
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Database | PostgreSQL 16 | Primary data store (18 schemas, 125+ tables) |
-| Message Bus | NATS JetStream | Event-driven communication |
-| API Gateway | NGINX | Load balancing, SSL termination, routing |
-| Container | Docker Compose | Service orchestration |
-| CDN | Cloudflare | Static assets, DDoS protection |
-| Storage | MinIO | Object storage for images/files |
+| API Gateway | NGINX | Routing, SSL, Load balancing |
+| Database | PostgreSQL 16 | Primary data store |
+| Message Bus | NATS JetStream | Event-driven messaging |
+| Object Storage | MinIO | Images, receipts |
+| CDN | Cloudflare | Caching, DDoS protection |
+| Containers | Docker Compose | Orchestration |
 
 ---
 
-## Domain-Driven Design (DDD)
+## 🎨 Domain-Driven Design (DDD)
 
-The platform is organized into distinct **Bounded Contexts**, each responsible for a specific business domain:
+### Bounded Contexts
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Kilang Platform                             │
-├───────────────┬───────────────┬───────────────┬───────────────────┤
-│  Inventory    │    Order      │    Agent      │   Marketplace     │
-│   Context     │   Context     │   Context     │    Context        │
-├───────────────┼───────────────┼───────────────┼───────────────────┤
-│  • Products   │  • Orders     │  • Agents     │  • Listings       │
-│  • Stock      │  • Payments   │  • Commissions│  • Storefronts    │
-│  • Categories │  • Shipping   │  • Payouts    │  • Analytics      │
-│  • Suppliers  │  • Tracking   │  • Teams      │  • Reviews        │
-└───────────────┴───────────────┴───────────────┴───────────────────┘
-                              ↕ Events ↕
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Shared Infrastructure                            │
-│  • Event Store  • Message Bus (NATS)  • Auth Service  • Telemetry   │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         BOUNDED CONTEXTS                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        CORE DOMAIN                                   │   │
+│  │                                                                      │   │
+│  │   ┌──────────────────┐    ┌──────────────────┐                      │   │
+│  │   │  ORDER CONTEXT   │    │ INVENTORY CONTEXT│                      │   │
+│  │   │  • Order         │    │  • Product       │                      │   │
+│  │   │  • Payment       │    │  • StockItem     │                      │   │
+│  │   │  • Shipment      │    │  • Category      │                      │   │
+│  │   └──────────────────┘    └──────────────────┘                      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                      SUPPORTING DOMAIN                               │   │
+│  │                                                                      │   │
+│  │   ┌──────────────────┐    ┌──────────────────┐                      │   │
+│  │   │  AGENT CONTEXT   │    │MARKETPLACE CONTEXT│                     │   │
+│  │   │  • Agent         │    │  • Listing       │                      │   │
+│  │   │  • Commission    │    │  • Connection    │                      │   │
+│  │   │  • Payout        │    │  • SyncJob       │                      │   │
+│  │   └──────────────────┘    └──────────────────┘                      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                       GENERIC DOMAIN                                 │   │
+│  │                                                                      │   │
+│  │   ┌──────────────────┐    ┌──────────────────┐   ┌──────────────┐   │   │
+│  │   │   AUTH CONTEXT   │    │ CUSTOMER CONTEXT │   │   SUPPORT    │   │   │
+│  │   │  • User          │    │  • Profile       │   │  • Ticket    │   │   │
+│  │   │  • Role          │    │  • Address       │   │  • FAQ       │   │   │
+│  │   │  • Permission    │    │  • Wishlist      │   │              │   │   │
+│  │   └──────────────────┘    └──────────────────┘   └──────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Key DDD Patterns Implemented
+### DDD Building Blocks
 
-- **Aggregate Roots**: Order, Product, Agent, Commission
-- **Domain Events**: `order.created`, `inventory.stock.reserved`, `commission.approved`
-- **Value Objects**: SKU, Money, OrderNumber, AgentTier
-- **Repository Pattern**: Clean separation between domain and data access
-- **Event Sourcing**: Order state transitions tracked via events
-
----
-
-## Key Features
-
-### 1. Multi-Tenant E-Commerce
-- Customer storefront with product browsing, cart, and checkout
-- Support for multiple payment methods (FPX, Bank Transfer, Cash Deposit)
-- Real-time inventory tracking
-
-### 2. Role-Based Access Control (RBAC)
 ```go
-// Permission-based access control
-type Permission struct {
-    Module string  // e.g., "products", "orders", "users"
-    Action string  // e.g., "view", "create", "update", "delete"
+// AGGREGATE ROOT
+type Order struct {
+    ID          uuid.UUID
+    CustomerID  uuid.UUID
+    Items       []OrderItem
+    Status      OrderStatus
+    TotalAmount Money
 }
 
-// Example roles: Admin, Manager, Staff, Agent, Customer
-```
+// VALUE OBJECT
+type Money struct {
+    Amount   decimal.Decimal
+    Currency string
+}
 
-| Role | Permissions |
-|------|-------------|
-| Admin | Full system access |
-| Manager | Products, Orders, Reports |
-| Staff | View orders, Update inventory |
-| Agent | View own sales, Commission reports |
+// DOMAIN EVENT
+type OrderCreatedEvent struct {
+    OrderID    uuid.UUID
+    CustomerID uuid.UUID
+    Items      []OrderItem
+    Timestamp  time.Time
+}
 
-### 3. Agent Commission System
-- Multi-tier agent system (Bronze, Silver, Gold, Platinum)
-- Automatic commission calculation per sale
-- Payout management with approval workflow
-- Team-based agent organization
-
-### 4. Payment Verification Workflow
-```
-Customer uploads receipt → Status: PENDING
-          ↓
-Admin reviews receipt → VERIFIED or REJECTED
-          ↓
-If verified → Order status: PAID → Trigger fulfillment
-```
-
-### 5. Marketplace Integration
-- **Shopee Open Platform**: Product sync, inventory sync, order import
-- **TikTok Shop Partner API**: Multi-channel selling
-- Centralized order management across all channels
-
-### 6. Real-Time Inventory
-- Stock reservation on checkout
-- Automatic release on order cancellation
-- Low stock alerts and reorder notifications
-- Multi-warehouse support
-
----
-
-## Database Schema Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    DATABASE SCHEMAS (18)                        │
-├─────────────────────────────────────────────────────────────────┤
-│  auth        │ Users, roles, permissions, sessions              │
-│  catalog     │ Products, categories, variants, images           │
-│  orders      │ Orders, order_items, payments, shipments         │
-│  inventory   │ Stock, warehouses, stock_movements               │
-│  agent       │ Agents, commissions, payouts, teams              │
-│  customer    │ Profiles, addresses, wishlists                   │
-│  marketplace │ Connections, product_mappings, sync_jobs         │
-│  support     │ Tickets, messages, faq                           │
-│  ...         │ + 10 more schemas                                │
-└─────────────────────────────────────────────────────────────────┘
-                         Total: 125+ Tables
+// REPOSITORY
+type OrderRepository interface {
+    Save(order *Order) error
+    FindByID(id uuid.UUID) (*Order, error)
+}
 ```
 
 ---
 
-## API Documentation
+## 💾 Database Design
 
-### Authentication
+### Schema Overview
+
 ```
-POST /api/v1/auth/login          # Login with email/password
-POST /api/v1/auth/register       # Customer registration
-POST /api/v1/auth/refresh        # Refresh JWT token
-GET  /api/v1/auth/me             # Get current user profile
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DATABASE SCHEMAS (18)                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
+│   │    auth     │  │   catalog   │  │   orders    │  │   agent     │       │
+│   │ • users     │  │ • products  │  │ • orders    │  │ • agents    │       │
+│   │ • roles     │  │ • categories│  │ • items     │  │ • commissions│      │
+│   │ • perms     │  │ • variants  │  │ • payments  │  │ • payouts   │       │
+│   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘       │
+│                                                                             │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
+│   │  inventory  │  │ marketplace │  │  customer   │  │   support   │       │
+│   │ • stock     │  │ • connections│ │ • profiles  │  │ • tickets   │       │
+│   │ • warehouses│  │ • mappings  │  │ • addresses │  │ • messages  │       │
+│   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘       │
+│                                                                             │
+│   TOTAL: 18 Schemas, 125+ Tables                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Products (Catalog)
-```
-GET  /api/v1/products            # List products (public)
-GET  /api/v1/products/:id        # Get product details
-GET  /api/v1/categories          # List categories
-POST /api/v1/admin/products      # Create product (admin)
-PUT  /api/v1/admin/products/:id  # Update product (admin)
-```
+### Core Tables ERD
 
-### Orders
 ```
-POST /api/v1/orders              # Create order
-GET  /api/v1/orders/:id          # Get order details
-POST /api/v1/payments/upload     # Upload payment receipt
-GET  /api/v1/admin/orders        # List all orders (admin)
-PUT  /api/v1/admin/orders/:id    # Update order status
-```
-
-### Agent API
-```
-GET  /api/v1/agent/dashboard     # Agent dashboard stats
-GET  /api/v1/agent/commissions   # Commission history
-GET  /api/v1/agent/payouts       # Payout history
-POST /api/v1/agent/referral      # Generate referral link
+    ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+    │    users     │         │   products   │         │  categories  │
+    ├──────────────┤         ├──────────────┤         ├──────────────┤
+    │ id (PK)      │         │ id (PK)      │◄────────│ id (PK)      │
+    │ email        │         │ name         │         │ name         │
+    │ password_hash│         │ category_id  │         │ parent_id    │
+    │ role_id (FK) │         │ base_price   │         └──────────────┘
+    └──────┬───────┘         │ sku          │
+           │                 └──────┬───────┘         ┌──────────────┐
+           │                        │                 │   variants   │
+           │                        └────────────────►│ id (PK)      │
+           │                                          │ product_id   │
+           │                                          │ size, color  │
+           │                                          └──────────────┘
+    ┌──────▼───────┐         ┌──────────────┐
+    │    orders    │         │ order_items  │
+    ├──────────────┤         ├──────────────┤
+    │ id (PK)      │◄────────│ id (PK)      │
+    │ user_id (FK) │         │ order_id     │
+    │ status       │         │ product_id   │
+    │ total_amount │         │ quantity     │
+    │ agent_code   │         └──────────────┘
+    └──────┬───────┘
+           │
+    ┌──────▼───────┐         ┌──────────────┐
+    │    agents    │         │ commissions  │
+    ├──────────────┤         ├──────────────┤
+    │ id (PK)      │◄────────│ id (PK)      │
+    │ agent_code   │         │ agent_id     │
+    │ tier         │         │ order_id     │
+    │ total_sales  │         │ amount, rate │
+    └──────────────┘         └──────────────┘
 ```
 
 ---
 
-## Project Structure
+## 📨 Event-Driven Architecture
+
+### Event Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       NATS JETSTREAM EVENT FLOW                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              NATS JetStream
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │   Streams:                                                              │
+    │   ├── ORDERS    (order.*)                                               │
+    │   ├── INVENTORY (inventory.*)                                           │
+    │   ├── PAYMENTS  (payment.*)                                             │
+    │   └── AGENTS    (agent.*)                                               │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                    │
+         ┌──────────────────────────┼──────────────────────────┐
+         ▼                          ▼                          ▼
+    ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+    │   ORDER     │          │  INVENTORY  │          │    AGENT    │
+    │  SERVICE    │          │   SERVICE   │          │   SERVICE   │
+    └─────────────┘          └─────────────┘          └─────────────┘
+```
+
+### Event Catalog
+
+| Event | Triggered When | Subscribers |
+|-------|----------------|-------------|
+| `order.created` | Customer completes checkout | Inventory, Agent, Notification |
+| `order.paid` | Payment verified | Inventory, Notification |
+| `order.shipped` | Order handed to courier | Notification |
+| `order.delivered` | Customer confirms receipt | Agent |
+| `inventory.reserved` | Stock reserved | Order |
+| `inventory.low` | Stock below threshold | Notification |
+| `commission.approved` | Order delivered | Notification |
+| `payout.completed` | Admin processes transfer | Notification |
+
+---
+
+## 📁 Project Structure
 
 ```
 KilangDesaMurniBatik/
-├── frontend-admin/          # Admin dashboard (Next.js 14)
-├── frontend-agent/          # Agent portal (Next.js 14)
-├── frontend-storefront/     # Customer store (Next.js 14)
-├── frontend-warehouse/      # Warehouse app (Next.js 14)
 │
-├── service-auth/            # Authentication service (Go)
-├── service-catalog/         # Product catalog service (Go)
-├── service-order/           # Order management service (Go)
-├── service-agent/           # Agent commission service (Go)
-├── service-inventory/       # Inventory service (Go)
-├── service-customer/        # Customer service (Go)
-├── service-marketplace/     # Marketplace integration (Go)
-├── service-notification/    # Notification service (Go)
-├── service-reporting/       # Reporting service (Go)
-├── service-support/         # Support ticket service (Go)
+├── frontend-admin/          # Admin Dashboard (Next.js 14)
+├── frontend-agent/          # Agent Portal (Next.js 14)
+├── frontend-storefront/     # Customer Store (Next.js 14)
+├── frontend-warehouse/      # Warehouse App (Next.js 14)
 │
-├── lib-common/              # Shared Go libraries
-├── lib-ui/                  # Shared UI components
+├── service-auth/            # Authentication Service (Go)
+│   ├── cmd/server/          # Entry point
+│   └── internal/
+│       ├── handlers/        # HTTP handlers
+│       ├── middleware/      # Auth middleware
+│       ├── models/          # Domain models
+│       ├── repository/      # Data access
+│       └── services/        # Business logic
 │
-├── infra-database/          # Database migrations & seeds
-├── infra-platform/          # Docker Compose & configs
+├── service-catalog/         # Product Service (Go)
+├── service-order/           # Order Service (Go)
+├── service-agent/           # Agent Service (Go)
+├── service-inventory/       # Inventory Service (Go)
+├── service-marketplace/     # Marketplace Service (Go)
+├── service-notification/    # Notification Service (Go)
+├── service-reporting/       # Reporting Service (Go)
+├── service-customer/        # Customer Service (Go)
+├── service-support/         # Support Service (Go)
+│
+├── lib-common/              # Shared Go Libraries
+├── lib-ui/                  # Shared UI Components
+│
+├── infra-database/          # Database Migrations
+├── infra-platform/          # Docker Compose
 │
 ├── docs/                    # Documentation
-│   ├── architecture/        # System architecture docs
-│   ├── api/                 # API documentation
-│   ├── guides/              # Implementation guides
-│   └── reports/             # Test & audit reports
 │
 └── README.md
 ```
 
 ---
 
-## Event-Driven Architecture
-
-The system uses **NATS JetStream** for reliable event-driven communication:
-
-```
-┌─────────────┐    publish    ┌─────────────┐    subscribe    ┌─────────────┐
-│   Order     │ ───────────►  │    NATS     │  ────────────►  │  Inventory  │
-│  Service    │               │  JetStream  │                 │   Service   │
-└─────────────┘               └─────────────┘                 └─────────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    │               │               │
-                    ▼               ▼               ▼
-              ┌──────────┐   ┌──────────┐   ┌──────────┐
-              │  Agent   │   │Notification│  │ Reporting│
-              │ Service  │   │  Service  │   │ Service  │
-              └──────────┘   └──────────┘   └──────────┘
-```
-
-### Domain Events
-| Event | Publisher | Subscribers |
-|-------|-----------|-------------|
-| `order.created` | Order | Inventory, Agent, Notification |
-| `order.paid` | Order | Inventory, Agent, Notification |
-| `inventory.stock.reserved` | Inventory | Order |
-| `inventory.stock.depleted` | Inventory | Notification |
-| `commission.approved` | Agent | Notification |
-
----
-
-## Screenshots
-
-### Customer Storefront
-- Product catalog with filtering
-- Shopping cart and checkout
-- Order tracking
-
-### Admin Dashboard
-- Sales analytics and reports
-- Order management
-- Product management
-- User & role management
-
-### Agent Portal
-- Commission dashboard
-- Sales tracking
-- Payout requests
-
----
-
-## Development Setup
-
-### Prerequisites
-- Go 1.24+
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL 16 (or use Docker)
-
-### Quick Start
-
-```bash
-# Clone repository
-git clone https://github.com/MuhammadLuqman-99/KilangDesaMurniBatik.git
-cd KilangDesaMurniBatik
-
-# Start infrastructure
-cd infra-platform
-docker-compose up -d postgres nats minio nginx
-
-# Run database migrations
-cd ../infra-database
-./scripts/run_migrations.sh
-
-# Start backend services
-cd ../service-auth && go run cmd/server/main.go &
-cd ../service-catalog && go run cmd/server/main.go &
-# ... start other services
-
-# Start frontend
-cd ../frontend-storefront && npm install && npm run dev
-```
-
----
-
-## Deployment
-
-The platform is designed for production deployment with:
-
-- **Docker Compose** for container orchestration
-- **NGINX** as reverse proxy with SSL termination
-- **Cloudflare** for CDN and DDoS protection
-- **PostgreSQL** with automated backups
-- **Health checks** and monitoring endpoints
-
----
-
-## Technical Highlights
+## 📊 Technical Highlights
 
 | Aspect | Implementation |
 |--------|----------------|
 | **Architecture** | Microservices with DDD |
-| **API Design** | RESTful with OpenAPI spec |
+| **API Design** | RESTful with OpenAPI |
 | **Authentication** | JWT + Refresh tokens |
 | **Authorization** | Fine-grained RBAC |
-| **Database** | PostgreSQL with 18 schemas |
+| **Database** | PostgreSQL 16 (18 schemas, 125+ tables) |
 | **Events** | NATS JetStream |
-| **Caching** | Redis (optional) |
-| **Search** | Full-text search with PostgreSQL |
 | **File Storage** | MinIO (S3-compatible) |
 | **Monitoring** | OpenTelemetry ready |
 
 ---
 
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [System Architecture](docs/architecture/system-architecture.md) | Overall system design |
-| [Complete System Documentation](docs/architecture/complete-system-documentation.md) | Comprehensive technical docs |
-| [Bounded Contexts](docs/architecture/bounded-contexts.md) | DDD bounded contexts |
-| [API Documentation](docs/api/) | API endpoints reference |
-| [Marketplace Integration](docs/integration/marketplace-integration.md) | Shopee & TikTok integration |
-
----
-
-## Author
+## 👨‍💻 Author
 
 **Muhammad Luqman**
 
@@ -426,12 +1056,14 @@ The platform is designed for production deployment with:
 
 ---
 
-## License
+## 📄 License
 
 This project is proprietary software developed for Kilang Desa Murni Batik.
 
 ---
 
-<p align="center">
-  <b>Built with Domain-Driven Design principles for scalability and maintainability</b>
-</p>
+<div align="center">
+
+**Built with Domain-Driven Design principles for scalability and maintainability**
+
+</div>

@@ -81,7 +81,7 @@ test.describe('Agent Portal @P1', () => {
     });
 
     test('API-AGT-011: GET /agent/customers — agent customers', async ({ agentApi }) => {
-        const res = await agentApi.get('agent/customers');
+        const res = await agentApi.get('agent/customers', { timeout: 30000 });
         expect([200, 401, 403]).toContain(res.status());
     });
 

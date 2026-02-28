@@ -1,0 +1,25 @@
+{
+  "name": "kilang-e2e-api-tests",
+  "version": "1.0.0",
+  "description": "API E2E tests for KilangDesaMurniBatik platform",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:auth": "npx playwright test tests/auth/",
+    "test:catalog": "npx playwright test tests/catalog/",
+    "test:order": "npx playwright test tests/order/",
+    "test:customer": "npx playwright test tests/customer/",
+    "test:inventory": "npx playwright test tests/inventory/",
+    "test:marketplace": "npx playwright test tests/marketplace/",
+    "test:agent": "npx playwright test tests/agent/",
+    "test:support": "npx playwright test tests/support/",
+    "test:reporting": "npx playwright test tests/reporting/",
+    "test:cross": "npx playwright test tests/cross-service/",
+    "test:p0": "npx playwright test --grep @P0",
+    "test:p1": "npx playwright test --grep @P1",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "typescript": "^5.3.0"
+  }
+}

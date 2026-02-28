@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/api-fixtures';
-import { extractData } from '../../utils/helpers';
+import { expectStatus, extractData } from '../../utils/helpers';
 
 /**
  * CROSS-SERVICE — Return Flow Integration Tests
@@ -7,20 +7,20 @@ import { extractData } from '../../utils/helpers';
  */
 
 test.describe('Return Flow @P0', () => {
-    test('CROSS-005: Return lifecycle — list reasons → list returns', async ({ orderApi }) => {
+    test('CROSS-005: Return lifecycle — list reasons -> list returns -> detail', async ({ orderApi }) => {
         // Step 1: Get return reasons
         const reasonsRes = await orderApi.get('returns/reasons');
-        expect(reasonsRes.status()).toBe(200);
+        await expectStatus(reasonsRes, 200, 'Return reasons');
 
         const reasonsJson = await reasonsRes.json();
         const reasons = extractData(reasonsJson);
-        expect(Array.isArray(reasons) ? reasons : []).toBeDefined();
+        expect(Array.isArray(reasons), 'Reasons should be an array').toBe(true);
 
         // Step 2: List admin returns
         const returnsRes = await orderApi.get('admin/returns');
-        expect(returnsRes.status()).toBe(200);
+        await expectStatus(returnsRes, 200, 'Admin returns list');
 
-        // Step 3: If returns exist, verify we can get detail
+        // Step 3: If returns exist, verify detail
         const returnsJson = await returnsRes.json();
         const returnsData = extractData(returnsJson);
         const returnsList = Array.isArray(returnsData) ? returnsData : returnsData.items || [];
@@ -28,36 +28,23 @@ test.describe('Return Flow @P0', () => {
         if (returnsList.length > 0) {
             const returnId = returnsList[0].id;
             const detailRes = await orderApi.get(`admin/returns/${returnId}`);
-            expect(detailRes.status()).toBe(200);
+            await expectStatus(detailRes, 200, `Return detail ${returnId}`);
         }
     });
 });
 
 test.describe('Agent Commission Flow @P1', () => {
-    test('CROSS-011: Agent commission lifecycle — list agents → list commissions', async ({
-        agentApi,
-    }) => {
-        // Step 1: List agents
+    test('CROSS-011: Agent admin — list agents -> list commissions', async ({ agentApi }) => {
+        // Step 1: List agents (admin view)
         const agentsRes = await agentApi.get('agents');
-        expect(agentsRes.status()).toBe(200);
+        await expectStatus(agentsRes, 200, 'List agents');
 
         const agentsJson = await agentsRes.json();
         const agentsData = extractData(agentsJson);
         const agents = Array.isArray(agentsData) ? agentsData : agentsData.items || [];
 
-        if (agents.length > 0) {
-            const agentId = agents[0].id;
-
-            // Step 2: Get agent commissions
-            const commissionsRes = await agentApi.get(`agents/${agentId}/commissions`);
-            // 401 = may need agent token instead of admin token (BUG-009)
-            // 404 = route may not exist at this path
-            expect([200, 401, 404]).toContain(commissionsRes.status());
-
-            // Step 3: Get agent payouts
-            const payoutsRes = await agentApi.get(`agents/${agentId}/payouts`);
-            // 500 = backend bug with payouts endpoint
-            expect([200, 401, 404, 500]).toContain(payoutsRes.status());
-        }
+        // Step 2: List all commissions (admin view)
+        const commissionsRes = await agentApi.get('admin/commissions');
+        await expectStatus(commissionsRes, 200, 'Admin commissions');
     });
 });

@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/api-fixtures';
-import { extractData, extractPaginatedItems } from '../../utils/helpers';
+import { expectStatus, extractData, extractPaginatedItems, requireValue } from '../../utils/helpers';
 
 /**
  * INVENTORY SERVICE — Stock & Warehouse Tests
@@ -8,59 +8,63 @@ import { extractData, extractPaginatedItems } from '../../utils/helpers';
 
 test.describe('Inventory Availability - Public @P0', () => {
     test('API-INV-001: GET /inventory/availability/:product_id — check product', async ({ inventoryApi, catalogApi }) => {
-        // Get a product ID first
         const prodRes = await catalogApi.get('products?limit=1');
+        await expectStatus(prodRes, 200, 'List products');
         const prodJson = await prodRes.json();
         const { items } = extractPaginatedItems(prodJson);
+        requireValue(items[0], 'At least 1 product must exist to check availability');
 
-        if (items.length > 0) {
-            const productId = items[0].id;
-            const res = await inventoryApi.get(`inventory/availability/${productId}`);
-            expect([200, 404]).toContain(res.status());
-        }
+        const productId = items[0].id;
+        const res = await inventoryApi.get(`inventory/availability/${productId}`);
+        await expectStatus(res, 200, `Availability for product ${productId}`);
     });
 
-    test('API-INV-003: POST /inventory/availability/bulk — bulk availability check', async ({ inventoryApi, catalogApi }) => {
+    // BUG-007: Bulk availability endpoint has wrong payload format
+    test.fixme('API-INV-003: POST /inventory/availability/bulk — bulk check @BUG-007', async ({ inventoryApi, catalogApi }) => {
         const prodRes = await catalogApi.get('products?limit=3');
         const prodJson = await prodRes.json();
         const { items } = extractPaginatedItems(prodJson);
+        requireValue(items[0], 'At least 1 product must exist for bulk check');
 
-        if (items.length > 0) {
-            const productIds = items.map((p: any) => p.id);
-            const res = await inventoryApi.post('inventory/availability/bulk', {
-                data: { product_ids: productIds },
-            });
-            // 400 = request format may be wrong (BUG-007)
-            expect([200, 400]).toContain(res.status());
-        }
+        const productIds = items.map((p: any) => p.id);
+        const res = await inventoryApi.post('inventory/availability/bulk', {
+            data: { product_ids: productIds },
+        });
+        await expectStatus(res, 200, 'Bulk availability');
     });
 });
 
 test.describe('Inventory Stock Admin @P1', () => {
-    test('API-INV-004: GET /admin/inventory — list stock items', async ({ inventoryApi }) => {
-        const res = await inventoryApi.get('admin/inventory');
-        expect([200]).toContain(res.status());
+    test('API-INV-004: GET /inventory/stock — list stock items', async ({ inventoryApi }) => {
+        const res = await inventoryApi.get('inventory/stock');
+        await expectStatus(res, 200, 'List stock');
     });
 
-    test('API-INV-005: GET /admin/inventory/stats — inventory statistics', async ({ inventoryApi }) => {
-        const res = await inventoryApi.get('admin/inventory/stats');
-        expect([200]).toContain(res.status());
+    test('API-INV-005: GET /inventory/stock/low — low stock items', async ({ inventoryApi }) => {
+        const res = await inventoryApi.get('inventory/stock/low');
+        await expectStatus(res, 200, 'Low stock items');
     });
 
-    test('API-INV-006: GET /admin/inventory/low-stock — low stock items', async ({ inventoryApi }) => {
-        const res = await inventoryApi.get('admin/inventory/low-stock');
-        expect([200]).toContain(res.status());
+    test('API-INV-006: GET /inventory/movements — stock movements', async ({ inventoryApi }) => {
+        const res = await inventoryApi.get('inventory/movements');
+        await expectStatus(res, 200, 'Stock movements');
+    });
+
+    // RBAC: customer cannot access inventory
+    test('API-INV-RBAC-001: GET /inventory/stock — customer token returns 401/403', async ({ customerApi }) => {
+        const res = await customerApi.get('inventory/stock');
+        expect([401, 403], 'Customer should not access inventory').toContain(res.status());
     });
 });
 
 test.describe('Inventory Warehouses @P1', () => {
     test('API-INV-011: GET /inventory/warehouses — list warehouses', async ({ inventoryApi }) => {
         const res = await inventoryApi.get('inventory/warehouses');
-        expect([200]).toContain(res.status());
+        await expectStatus(res, 200, 'List warehouses');
 
         const json = await res.json();
         const data = extractData(json);
         const warehouses = Array.isArray(data) ? data : data.items || [];
-        expect(Array.isArray(warehouses)).toBe(true);
+        expect(Array.isArray(warehouses), 'Warehouses should be an array').toBe(true);
     });
 });

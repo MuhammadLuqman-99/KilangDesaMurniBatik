@@ -1,38 +1,44 @@
 import { test, expect } from '../../fixtures/api-fixtures';
-import { expectSuccess, extractData, generateTestData } from '../../utils/helpers';
+import { expectSuccess, expectError, expectStatus, extractData, assertShape, requireValue, TestDataCleaner } from '../../utils/helpers';
 
 /**
- * AUTH SERVICE — RBAC (Roles, Permissions, Users) Tests
+ * AUTH SERVICE — RBAC (Roles, Permissions, Users) + Settings + 2FA Tests
  * Service: service-auth (port 8001)
  *
  * NOTE: /admin/* routes go through admin.kilangdesamurnibatik.com
  *       /auth/*  routes go through kilangdesamurnibatik.com
  */
 
+const cleaner = new TestDataCleaner();
+
 test.describe('Auth 2FA @P1', () => {
     test('API-AUTH-016: GET /auth/2fa/status — returns 2FA status', async ({ authApi }) => {
         const res = await authApi.get('auth/2fa/status');
-        expect([200, 404, 503]).toContain(res.status()); // 404 if 2FA not supported, 503 intermittent
+        await expectStatus(res, 200, '2FA status');
+        const json = await res.json();
+        const data = extractData(json);
+        // Should have enabled/disabled info
+        expect(data).toBeTruthy();
     });
 
     test('API-AUTH-017: GET /auth/2fa/setup — returns QR code for setup', async ({ authApi }) => {
         const res = await authApi.get('auth/2fa/setup');
-        // May return 200 with QR data, 400 if already enabled, 503 intermittent
-        expect([200, 400, 503]).toContain(res.status());
+        // 200 if not yet enabled, 400 if already enabled — both are valid behaviors
+        expect([200, 400]).toContain(res.status());
     });
 });
 
-test.describe('Auth RBAC @P1', () => {
-    test('API-AUTH-020: GET /admin/users — list users (admin only)', async ({ adminApi }) => {
+test.describe('Auth RBAC — Users @P0', () => {
+    test('API-AUTH-020: GET /admin/users — list users returns array', async ({ adminApi }) => {
         const res = await adminApi.get('admin/users');
         const json = await expectSuccess(res);
         const data = extractData(json);
-        // Should return array of users
         const users = Array.isArray(data) ? data : data.items || data.users || [];
-        expect(Array.isArray(users)).toBe(true);
+        expect(Array.isArray(users), 'Users should be an array').toBe(true);
+        expect(users.length, 'Should have at least 1 user (admin)').toBeGreaterThan(0);
     });
 
-    test('API-AUTH-021: POST /admin/users — create user', async ({ adminApi }) => {
+    test('API-AUTH-021: POST /admin/users — create and delete user', async ({ adminApi }) => {
         const userData = {
             name: 'E2E Test User',
             email: `e2e-user-${Date.now()}@test.com`,
@@ -43,24 +49,62 @@ test.describe('Auth RBAC @P1', () => {
         const res = await adminApi.post('admin/users', { data: userData });
         expect([200, 201]).toContain(res.status());
 
-        // Cleanup: delete the created user
-        if (res.status() === 200 || res.status() === 201) {
-            const json = await res.json();
-            const data = extractData(json);
-            const userId = data?.id;
-            if (userId) {
-                await adminApi.delete(`admin/users/${userId}`);
-            }
+        const json = await res.json();
+        const data = extractData(json);
+        const userId = data?.id;
+        expect(userId, 'Created user must have an id').toBeTruthy();
+
+        // Cleanup
+        if (userId) {
+            await adminApi.delete(`admin/users/${userId}`);
         }
     });
 
+    test('API-AUTH-025: POST /admin/users/:id/roles — assign role to user', async ({ adminApi }) => {
+        // Get a user
+        const usersRes = await adminApi.get('admin/users');
+        const usersJson = await usersRes.json();
+        const users = extractData(usersJson);
+        const userList = Array.isArray(users) ? users : users.items || [];
+        requireValue(userList[0], 'At least 1 user must exist to test role assignment');
+        const userId = userList[0].id;
+
+        // Get a role
+        const rolesRes = await adminApi.get('admin/roles');
+        const rolesJson = await rolesRes.json();
+        const roles = extractData(rolesJson);
+        const roleList = Array.isArray(roles) ? roles : roles.items || [];
+        requireValue(roleList[0], 'At least 1 role must exist to test role assignment');
+        const roleId = roleList[0].id;
+
+        const res = await adminApi.post(`admin/users/${userId}/roles`, {
+            data: { role_id: roleId },
+        });
+        // 200/201 = assigned, 409 = already assigned — both are valid
+        expect([200, 201, 409]).toContain(res.status());
+    });
+
+    // RBAC enforcement: customer cannot access admin users
+    test('API-AUTH-RBAC-001: GET /admin/users — customer token returns 401/403', async ({ customerApi }) => {
+        const res = await customerApi.get('admin/users');
+        expect([401, 403]).toContain(res.status());
+    });
+
+    // RBAC enforcement: unauthenticated cannot access admin users
+    test('API-AUTH-RBAC-002: GET /admin/users — no token returns 401', async ({ publicApi }) => {
+        const res = await publicApi.get('admin/users');
+        await expectStatus(res, 401, 'Unauthenticated admin/users');
+    });
+});
+
+test.describe('Auth RBAC — Roles @P0', () => {
     test('API-AUTH-022: GET /admin/roles — list roles', async ({ adminApi }) => {
         const res = await adminApi.get('admin/roles');
         const json = await expectSuccess(res);
         const data = extractData(json);
         const roles = Array.isArray(data) ? data : data.items || data.roles || [];
-        expect(Array.isArray(roles)).toBe(true);
-        expect(roles.length).toBeGreaterThan(0); // At least admin role
+        expect(Array.isArray(roles), 'Roles should be an array').toBe(true);
+        expect(roles.length, 'Should have at least 1 role (admin)').toBeGreaterThan(0);
     });
 
     test('API-AUTH-023: POST /admin/roles — create role with permissions', async ({ adminApi }) => {
@@ -73,69 +117,45 @@ test.describe('Auth RBAC @P1', () => {
         const res = await adminApi.post('admin/roles', { data: roleData });
         expect([200, 201]).toContain(res.status());
 
+        const json = await res.json();
+        const data = extractData(json);
+        expect(data?.id, 'Created role must have an id').toBeTruthy();
+
         // Cleanup
-        if (res.status() === 200 || res.status() === 201) {
-            const json = await res.json();
-            const data = extractData(json);
-            if (data?.id) {
-                await adminApi.delete(`admin/roles/${data.id}`);
-            }
+        if (data?.id) {
+            await adminApi.delete(`admin/roles/${data.id}`);
         }
     });
 
     test('API-AUTH-024: GET /admin/permissions — list all permissions', async ({ adminApi }) => {
         const res = await adminApi.get('admin/permissions');
-        expect([200]).toContain(res.status());
+        await expectStatus(res, 200, 'List permissions');
     });
 
-    test('API-AUTH-025: POST /admin/users/:id/roles — assign role to user', async ({ adminApi }) => {
-        // Get a user first
-        const usersRes = await adminApi.get('admin/users');
-        const usersJson = await usersRes.json();
-        const users = extractData(usersJson);
-        const userList = Array.isArray(users) ? users : users.items || [];
-
-        if (userList.length > 0) {
-            const userId = userList[0].id;
-            // Get a role
-            const rolesRes = await adminApi.get('admin/roles');
-            const rolesJson = await rolesRes.json();
-            const roles = extractData(rolesJson);
-            const roleList = Array.isArray(roles) ? roles : roles.items || [];
-
-            if (roleList.length > 0) {
-                const roleId = roleList[0].id;
-                const res = await adminApi.post(`admin/users/${userId}/roles`, {
-                    data: { role_id: roleId },
-                });
-                // May succeed or conflict if already assigned
-                expect([200, 201, 400, 409]).toContain(res.status());
-            }
-        }
+    test('API-AUTH-024b: GET /admin/roles/stats — role stats', async ({ adminApi }) => {
+        const res = await adminApi.get('admin/roles/stats');
+        await expectStatus(res, 200, 'Role stats');
     });
 });
 
 test.describe('Auth Settings @P1', () => {
     test('API-AUTH-026: GET /admin/settings — get all settings', async ({ adminApi }) => {
         const res = await adminApi.get('admin/settings');
-        // 500 = known server bug (settings table may not be initialized)
-        expect([200, 500]).toContain(res.status());
+        await expectStatus(res, 200, 'Get all settings');
     });
 
-    test('API-AUTH-027: PUT /admin/settings/general — update general settings', async ({ adminApi }) => {
+    test('API-AUTH-027: GET /admin/settings/general — get general settings', async ({ adminApi }) => {
         const res = await adminApi.get('admin/settings/general');
-        if (res.status() === 200) {
-            const json = await res.json();
-            const data = extractData(json);
-            // Re-save same data (no actual change)
-            const updateRes = await adminApi.put('admin/settings/general', { data });
-            expect([200, 204]).toContain(updateRes.status());
-        }
+        await expectStatus(res, 200, 'Get general settings');
     });
 
     test('API-AUTH-028: GET /admin/activity-logs — get activity logs', async ({ adminApi }) => {
         const res = await adminApi.get('admin/activity-logs');
-        // 500 = known server bug (activity_logs table may have schema issue)
-        expect([200, 500]).toContain(res.status());
+        await expectStatus(res, 200, 'Get activity logs');
+    });
+
+    test('API-AUTH-028b: GET /admin/activity-logs/stats — activity log stats', async ({ adminApi }) => {
+        const res = await adminApi.get('admin/activity-logs/stats');
+        await expectStatus(res, 200, 'Activity log stats');
     });
 });

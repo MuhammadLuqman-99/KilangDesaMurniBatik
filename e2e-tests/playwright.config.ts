@@ -25,8 +25,13 @@ export default defineConfig({
     testDir: './tests',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
-    retries: process.env.CI ? 2 : 1,
-    workers: process.env.CI ? 1 : 3,
+    // Zero retries locally to catch flaky tests immediately
+    // 2 retries in CI for transient network issues
+    retries: process.env.CI ? 2 : 0,
+    // Fewer workers to avoid rate limiting
+    workers: process.env.CI ? 1 : 2,
+    // Global test timeout
+    timeout: 30_000,
     reporter: [
         ['html', { outputFolder: 'playwright-report' }],
         ['json', { outputFile: 'test-results/results.json' }],
@@ -34,15 +39,12 @@ export default defineConfig({
     ],
 
     use: {
-        // No baseURL — each test uses service-specific URLs from testConfig
         extraHTTPHeaders: {
             'Content-Type': 'application/json',
         },
-        // Generous timeout for API calls
         actionTimeout: 15000,
     },
 
-    // No browser projects needed — API tests only use APIRequestContext
     projects: [
         {
             name: 'api',

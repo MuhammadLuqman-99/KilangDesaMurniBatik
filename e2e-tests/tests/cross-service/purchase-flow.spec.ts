@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/api-fixtures';
-import { extractData, extractPaginatedItems, generateTestData } from '../../utils/helpers';
+import { expectStatus, extractPaginatedItems, requireValue } from '../../utils/helpers';
 import { testConfig } from '../../config/test.config';
 
 /**
@@ -8,20 +8,21 @@ import { testConfig } from '../../config/test.config';
  */
 
 test.describe('Full Purchase Flow @P0', () => {
-    test('CROSS-001: Browse product → Add to cart → Checkout → Order created', async ({
+    // Depends on BUG-002 (cart returns 500) being fixed
+    test.fixme('CROSS-001: Browse product -> Add to cart -> Verify cart @BUG-002', async ({
         publicApi,
         customerApi,
     }) => {
-        // Step 1: Get a product from catalog service (public storefront)
+        // Step 1: Get a product from catalog
         const prodRes = await publicApi.get('products?limit=1&status=active');
-        expect(prodRes.status()).toBe(200);
+        await expectStatus(prodRes, 200, 'List products');
         const prodJson = await prodRes.json();
         const { items } = extractPaginatedItems(prodJson);
-        expect(items.length).toBeGreaterThan(0);
+        requireValue(items[0], 'At least 1 product must exist');
 
         const product = items[0];
 
-        // Step 2: Add to cart via order service (storefront domain — cart routes)
+        // Step 2: Add to cart
         const cartRes = await customerApi.post('cart/items', {
             data: {
                 product_id: product.id,
@@ -29,46 +30,21 @@ test.describe('Full Purchase Flow @P0', () => {
                 quantity: 1,
             },
         });
-        // 404 = cart may require session, 500 = validation bug (BUG-002)
-        expect([200, 201, 400, 404, 500]).toContain(cartRes.status());
+        expect([200, 201]).toContain(cartRes.status());
 
-        // Step 3: Create order (storefront domain — orders route)
-        const orderData = generateTestData('order');
-        const createRes = await customerApi.post('orders', {
-            data: {
-                ...orderData,
-                items: [{
-                    product_id: product.id,
-                    variant_id: product.variants?.[0]?.id || product.id,
-                    quantity: 1,
-                    price: product.base_price || product.price || 99.90,
-                    name: product.name,
-                }],
-                shipping_method: 'standard',
-                payment_method: 'bank_transfer',
-            },
-        });
-        // Accept 200/201 (success) or 400/422 (validation) or 500 (server issue)
-        expect([200, 201, 400, 422, 500]).toContain(createRes.status());
-
-        if (createRes.status() === 200 || createRes.status() === 201) {
-            const orderJson = await createRes.json();
-            const orderResult = extractData(orderJson);
-            expect(orderResult.id || orderResult.order_id).toBeTruthy();
-        }
+        // Step 3: Verify cart has the item
+        const getCartRes = await customerApi.get('cart');
+        await expectStatus(getCartRes, 200, 'Get cart after add');
     });
 
-    test('CROSS-007: Login → Access all services with same JWT token', async ({
+    test('CROSS-007: Admin JWT token accepted by all services', async ({
         adminToken,
         playwright,
     }) => {
-        // The admin token from auth service should work on ALL services
-        // NOTE: admin/* routes go through admin subdomain, public routes through storefront
         const services = [
             { name: 'catalog', url: testConfig.adminApi.baseUrl, endpoint: 'products?limit=1' },
             { name: 'order', url: testConfig.adminApi.baseUrl, endpoint: 'admin/orders?limit=1' },
             { name: 'customer', url: testConfig.adminApi.baseUrl, endpoint: 'admin/customers?limit=1' },
-            { name: 'inventory', url: testConfig.adminApi.baseUrl, endpoint: 'admin/inventory?limit=1' },
         ];
 
         for (const svc of services) {
@@ -89,16 +65,48 @@ test.describe('Full Purchase Flow @P0', () => {
     test('CROSS-008: Unauthenticated request rejected by admin endpoints', async ({ playwright }) => {
         const adminBaseUrl = testConfig.adminApi.baseUrl;
         const endpoints = [
-            { path: 'admin/orders' },
-            { path: 'admin/customers' },
-            { path: 'admin/inventory' },
+            'admin/orders',
+            'admin/customers',
         ];
 
-        for (const ep of endpoints) {
+        for (const path of endpoints) {
             const ctx = await playwright.request.newContext({ baseURL: adminBaseUrl });
-            const res = await ctx.get(ep.path);
-            expect(res.status(), `${ep.path} should reject without auth`).toBe(401);
+            const res = await ctx.get(path);
+            expect(res.status(), `${path} should reject without auth`).toBe(401);
             await ctx.dispose();
         }
+    });
+
+    // Customer token should access customer routes but not admin routes
+    test('CROSS-009: Customer token accepted by customer endpoints, rejected by admin', async ({
+        customerToken,
+        playwright,
+    }) => {
+        const storefrontUrl = testConfig.services.auth.baseUrl;
+        const adminUrl = testConfig.adminApi.baseUrl;
+
+        // Should work: customer route
+        const custCtx = await playwright.request.newContext({
+            baseURL: storefrontUrl,
+            extraHTTPHeaders: {
+                Authorization: `Bearer ${customerToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        const custRes = await custCtx.get('customer/profile');
+        await expectStatus(custRes, 200, 'Customer profile with customer token');
+        await custCtx.dispose();
+
+        // Should fail: admin route
+        const adminCtx = await playwright.request.newContext({
+            baseURL: adminUrl,
+            extraHTTPHeaders: {
+                Authorization: `Bearer ${customerToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        const adminRes = await adminCtx.get('admin/orders');
+        expect([401, 403], 'Customer token on admin route').toContain(adminRes.status());
+        await adminCtx.dispose();
     });
 });

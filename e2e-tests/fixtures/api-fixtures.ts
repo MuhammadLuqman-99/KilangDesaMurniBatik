@@ -5,32 +5,36 @@ import { testConfig } from '../config/test.config';
  * Service-specific API request contexts with authentication
  *
  * ROUTING NOTES (VPS):
- *   kilangdesamurnibatik.com       → public/customer routes (customer/*, cart/*, products, orders, etc.)
- *   admin.kilangdesamurnibatik.com → admin routes (admin/*, reports/*, analytics/*, cms/admin/*)
+ *   kilangdesamurnibatik.com       -> public/customer routes (customer/*, cart/*, products, orders, etc.)
+ *   admin.kilangdesamurnibatik.com -> admin routes (admin/*, reports/*, analytics/*, cms/admin/*)
  *
- * Most test fixtures use the admin domain since E2E tests primarily test admin endpoints.
- * Customer-facing fixtures (customerApi, orderApi) use the storefront domain.
+ * ROLE SEPARATION:
+ *   adminToken   -> admin user (full access)
+ *   customerToken -> customer user (customer/* routes only)
+ *   agentToken   -> agent user (agent/* routes only)
  */
 interface ApiFixtures {
-    /** Authenticated API context for auth service (public auth routes — storefront domain) */
+    /** Authenticated API context for auth service (public auth routes -- storefront domain) */
     authApi: APIRequestContext;
-    /** Authenticated API context for admin-only routes — admin domain */
+    /** Authenticated API context for admin-only routes -- admin domain */
     adminApi: APIRequestContext;
-    /** Authenticated API context for catalog (admin domain — has both public + admin routes) */
+    /** Authenticated API context for catalog (admin domain -- has both public + admin routes) */
     catalogApi: APIRequestContext;
-    /** Authenticated API context for order service (admin domain — admin/orders) */
+    /** Authenticated API context for order service (admin domain -- admin/orders) */
     orderApi: APIRequestContext;
-    /** Authenticated API context for customer-facing routes (storefront domain — customer/*) */
+    /** Authenticated API context for customer-facing routes (storefront domain -- customer/*) using CUSTOMER token */
     customerApi: APIRequestContext;
-    /** Authenticated API context for inventory (admin domain — admin/inventory) */
+    /** Authenticated API context for inventory (admin domain -- admin/inventory) */
     inventoryApi: APIRequestContext;
     /** Authenticated API context for marketplace (admin domain) */
     marketplaceApi: APIRequestContext;
-    /** Authenticated API context for agent (admin domain — admin/agents) */
+    /** Authenticated API context for agent admin management (admin domain -- admin/agents) */
     agentApi: APIRequestContext;
-    /** Authenticated API context for support (storefront domain — support/*) */
+    /** Authenticated API context for agent portal routes (storefront domain -- agent/* with agent token) */
+    agentPortalApi: APIRequestContext;
+    /** Authenticated API context for support (storefront domain -- support/*) */
     supportApi: APIRequestContext;
-    /** Authenticated API context for reporting (admin domain — reports/*) */
+    /** Authenticated API context for reporting (admin domain -- reports/*) */
     reportingApi: APIRequestContext;
     /** Unauthenticated API context (storefront domain, no token) */
     publicApi: APIRequestContext;
@@ -38,6 +42,8 @@ interface ApiFixtures {
     adminToken: string;
     /** Customer JWT access token */
     customerToken: string;
+    /** Agent JWT access token */
+    agentToken: string;
 }
 
 /** Login and get access token from auth service (with retry for rate limiting) */
@@ -109,90 +115,104 @@ export const test = base.extend<ApiFixtures>({
         await use(token);
     },
 
+    // Customer token -- fails loudly if login fails (no error swallowing)
     customerToken: async ({ playwright }, use) => {
-        try {
-            const token = await getToken(
-                playwright as any,
-                testConfig.users.customer.email,
-                testConfig.users.customer.password,
-            );
-            await use(token);
-        } catch {
-            await use('');
-        }
+        const token = await getToken(
+            playwright as any,
+            testConfig.users.customer.email,
+            testConfig.users.customer.password,
+        );
+        await use(token);
     },
 
-    // Auth API — storefront domain (login, me, verify, 2fa)
+    // Agent token -- for agent portal routes
+    agentToken: async ({ playwright }, use) => {
+        const token = await getToken(
+            playwright as any,
+            testConfig.users.agent.email,
+            testConfig.users.agent.password,
+        );
+        await use(token);
+    },
+
+    // Auth API -- storefront domain (login, me, verify, 2fa)
     authApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, storefrontApi, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Admin API — admin domain (admin/users, admin/roles, admin/settings, etc.)
+    // Admin API -- admin domain (admin/users, admin/roles, admin/settings, etc.)
     adminApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Catalog API — admin domain (has both public products and admin/products)
+    // Catalog API -- admin domain (has both public products and admin/products)
     catalogApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Order API — admin domain (admin/orders, admin/shipping)
+    // Order API -- admin domain (admin/orders, admin/shipping)
     orderApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Customer API — storefront domain (customer/*, cart/*)
-    customerApi: async ({ playwright, adminToken }, use) => {
-        const ctx = await createAuthContext(playwright, storefrontApi, adminToken);
+    // Customer API -- storefront domain with CUSTOMER token (NOT admin token)
+    customerApi: async ({ playwright, customerToken }, use) => {
+        const ctx = await createAuthContext(playwright, storefrontApi, customerToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Inventory API — admin domain (admin/inventory, admin/warehouses)
+    // Inventory API -- admin domain (admin/inventory, admin/warehouses)
     inventoryApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Marketplace API — admin domain
+    // Marketplace API -- admin domain
     marketplaceApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Agent API — admin domain (admin/agents, agent/*)
+    // Agent API -- admin domain (admin/agents -- for admin managing agents)
     agentApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Support API — storefront domain (support/*)
+    // Agent Portal API -- storefront domain with AGENT token (agent's own portal routes)
+    agentPortalApi: async ({ playwright, agentToken }, use) => {
+        const ctx = await createAuthContext(playwright, storefrontApi, agentToken);
+        await use(ctx);
+        await ctx.dispose();
+    },
+
+    // Support API -- storefront domain (support/*)
     supportApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, storefrontApi, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Reporting API — admin domain (reports/*, analytics/*)
+    // Reporting API -- admin domain (reports/*, analytics/*)
     reportingApi: async ({ playwright, adminToken }, use) => {
         const ctx = await createAuthContext(playwright, adminApiUrl, adminToken);
         await use(ctx);
         await ctx.dispose();
     },
 
-    // Public API — storefront domain, no auth
+    // Public API -- storefront domain, no auth
     publicApi: async ({ playwright }, use) => {
         const ctx = await playwright.request.newContext({
             baseURL: storefrontApi,

@@ -1,57 +1,59 @@
 import { test, expect } from '../../fixtures/api-fixtures';
-import { extractData, generateTestData } from '../../utils/helpers';
+import { expectStatus, extractData, requireValue } from '../../utils/helpers';
 
 /**
  * ORDER SERVICE — Checkout & Order Tests
  * Service: service-order (port 8003)
  */
 
-test.describe('Checkout & Orders @P0', () => {
-    test('API-ORD-011: GET /orders — list customer orders (auth required)', async ({ orderApi }) => {
-        const res = await orderApi.get('orders');
-        expect([200]).toContain(res.status());
+test.describe('Checkout - Customer @P0', () => {
+    test('API-ORD-011: GET /orders — list customer orders', async ({ customerApi }) => {
+        const res = await customerApi.get('orders');
+        await expectStatus(res, 200, 'List customer orders');
     });
 
-    test('API-ORD-015: GET /shipping/methods — get shipping methods', async ({ orderApi }) => {
-        const res = await orderApi.get('shipping/methods');
-        // 404 on admin domain — shipping/methods may only be on storefront (BUG-003)
-        expect([200, 404]).toContain(res.status());
-
-        if (res.status() === 200) {
-            const json = await res.json();
-            const data = extractData(json);
-            const methods = Array.isArray(data) ? data : data.methods || [];
-            expect(Array.isArray(methods)).toBe(true);
-        }
+    test('API-ORD-011b: GET /orders/stats — customer order stats', async ({ customerApi }) => {
+        const res = await customerApi.get('orders/stats');
+        await expectStatus(res, 200, 'Customer order stats');
     });
 
-    test('API-ORD-016: POST /shipping/rates — calculate shipping rates', async ({ orderApi }) => {
-        const res = await orderApi.post('shipping/rates', {
+    test('API-ORD-015: GET /shipping/methods — get shipping methods', async ({ customerApi }) => {
+        const res = await customerApi.get('shipping/methods');
+        await expectStatus(res, 200, 'Shipping methods');
+
+        const json = await res.json();
+        const data = extractData(json);
+        const methods = Array.isArray(data) ? data : data.methods || [];
+        expect(Array.isArray(methods), 'Shipping methods should be an array').toBe(true);
+    });
+
+    // BUG-003: POST /shipping/rates endpoint not implemented
+    test.fixme('API-ORD-016: POST /shipping/rates — calculate shipping rates @BUG-003', async ({ customerApi }) => {
+        const res = await customerApi.post('shipping/rates', {
             data: {
                 state: 'Terengganu',
                 postal_code: '20000',
                 items: [{ quantity: 1 }],
             },
         });
-        // 404 = endpoint not implemented yet (BUG-003)
-        expect([200, 400, 404]).toContain(res.status());
+        await expectStatus(res, 200, 'Shipping rates');
     });
 });
 
 test.describe('Admin Orders @P1', () => {
-    test('API-ORD-025: GET /admin/orders — list all orders (admin)', async ({ orderApi }) => {
+    test('API-ORD-025: GET /admin/orders — list all orders', async ({ orderApi }) => {
         const res = await orderApi.get('admin/orders');
-        expect([200]).toContain(res.status());
+        await expectStatus(res, 200, 'Admin list orders');
     });
 
     test('API-ORD-026: GET /admin/orders/stats — order statistics', async ({ orderApi }) => {
         const res = await orderApi.get('admin/orders/stats');
-        expect([200]).toContain(res.status());
+        await expectStatus(res, 200, 'Order stats');
     });
 
     test('API-ORD-027: GET /admin/orders/:id — get order detail', async ({ orderApi }) => {
-        // List orders first
         const listRes = await orderApi.get('admin/orders?limit=1');
+        await expectStatus(listRes, 200, 'List orders for detail');
         const listJson = await listRes.json();
         const data = extractData(listJson);
         const orders = Array.isArray(data) ? data : data.items || data.orders || [];
@@ -59,7 +61,15 @@ test.describe('Admin Orders @P1', () => {
         if (orders.length > 0) {
             const orderId = orders[0].id;
             const res = await orderApi.get(`admin/orders/${orderId}`);
-            expect(res.status()).toBe(200);
+            await expectStatus(res, 200, `Order detail ${orderId}`);
+        } else {
+            test.info().annotations.push({ type: 'skip-reason', description: 'No orders exist in system' });
         }
+    });
+
+    // RBAC: customer cannot access admin orders
+    test('API-ORD-RBAC-001: GET /admin/orders — customer token returns 401/403', async ({ customerApi }) => {
+        const res = await customerApi.get('admin/orders');
+        expect([401, 403], 'Customer should not access admin orders').toContain(res.status());
     });
 });

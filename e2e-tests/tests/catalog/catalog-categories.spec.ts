@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/api-fixtures';
-import { expectSuccess, extractData, generateTestData } from '../../utils/helpers';
+import { expectStatus, extractData, requireValue, generateTestData, TestDataCleaner } from '../../utils/helpers';
 
 /**
  * CATALOG SERVICE — Category Tests
@@ -9,49 +9,54 @@ import { expectSuccess, extractData, generateTestData } from '../../utils/helper
 test.describe('Catalog Categories - Public @P0', () => {
     test('API-CAT-007: GET /categories — list all categories', async ({ publicApi }) => {
         const res = await publicApi.get('categories');
-        expect(res.status()).toBe(200);
+        await expectStatus(res, 200, 'List categories');
 
         const json = await res.json();
         const data = extractData(json);
         const categories = Array.isArray(data) ? data : data.items || [];
-        expect(Array.isArray(categories)).toBe(true);
+        expect(Array.isArray(categories), 'Categories should be an array').toBe(true);
     });
 
     test('API-CAT-008: GET /categories/featured — featured categories', async ({ publicApi }) => {
         const res = await publicApi.get('categories/featured');
-        expect([200, 404]).toContain(res.status());
+        await expectStatus(res, 200, 'Featured categories');
     });
 
     test('API-CAT-009: GET /categories/:slug — get category by slug', async ({ publicApi }) => {
         const listRes = await publicApi.get('categories');
+        await expectStatus(listRes, 200, 'List categories for slug');
         const listJson = await listRes.json();
         const data = extractData(listJson);
         const categories = Array.isArray(data) ? data : data.items || [];
+        requireValue(categories[0], 'At least 1 category must exist');
 
-        if (categories.length > 0) {
-            const slug = categories[0].slug;
-            const res = await publicApi.get(`categories/${slug}`);
-            expect(res.status()).toBe(200);
-        }
+        const slug = categories[0].slug;
+        const res = await publicApi.get(`categories/${slug}`);
+        await expectStatus(res, 200, `Get category by slug: ${slug}`);
     });
 
-    test('API-CAT-010: GET /categories/:slug/products — category products with pagination', async ({ publicApi }) => {
+    test('API-CAT-010: GET /categories/:slug/products — category products', async ({ publicApi }) => {
         const listRes = await publicApi.get('categories');
         const listJson = await listRes.json();
         const data = extractData(listJson);
         const categories = Array.isArray(data) ? data : data.items || [];
+        requireValue(categories[0], 'At least 1 category must exist');
 
-        if (categories.length > 0) {
-            const slug = categories[0].slug;
-            const res = await publicApi.get(`categories/${slug}/products?page=1&limit=5`);
-            expect(res.status()).toBe(200);
-        }
+        const slug = categories[0].slug;
+        const res = await publicApi.get(`categories/${slug}/products?page=1&limit=5`);
+        await expectStatus(res, 200, 'Category products');
     });
 });
 
 test.describe('Catalog Categories - Admin @P1', () => {
     test.describe.configure({ mode: 'serial' });
+
+    const cleaner = new TestDataCleaner();
     let createdCategoryId: string | null = null;
+
+    test.afterAll(async () => {
+        await cleaner.cleanAll();
+    });
 
     test('API-CAT-024: POST /admin/categories — create category', async ({ catalogApi }) => {
         const categoryData = generateTestData('category');
@@ -61,11 +66,12 @@ test.describe('Catalog Categories - Admin @P1', () => {
 
         const json = await res.json();
         const data = extractData(json);
-        createdCategoryId = data?.id || null;
+        createdCategoryId = requireValue(data?.id, 'Category creation must return an id');
+        cleaner.track(catalogApi, `admin/categories/${createdCategoryId}`, 'test category');
     });
 
     test('API-CAT-025: PUT /admin/categories/:id — update category', async ({ catalogApi }) => {
-        if (!createdCategoryId) test.skip();
+        requireValue(createdCategoryId, 'Category must be created first');
 
         const res = await catalogApi.put(`admin/categories/${createdCategoryId}`, {
             data: { name: 'E2E Updated Category' },
@@ -74,10 +80,15 @@ test.describe('Catalog Categories - Admin @P1', () => {
     });
 
     test('API-CAT-026: DELETE /admin/categories/:id — delete category', async ({ catalogApi }) => {
-        if (!createdCategoryId) test.skip();
+        requireValue(createdCategoryId, 'Category must be created first');
 
         const res = await catalogApi.delete(`admin/categories/${createdCategoryId}`);
         expect([200, 204]).toContain(res.status());
         createdCategoryId = null;
+    });
+
+    test('API-CAT-024b: GET /admin/categories — admin category list', async ({ catalogApi }) => {
+        const res = await catalogApi.get('admin/categories');
+        await expectStatus(res, 200, 'Admin category list');
     });
 });

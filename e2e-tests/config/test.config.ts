@@ -1,38 +1,62 @@
 /**
  * E2E API Test Configuration
  * Defines all service endpoints, credentials, and test data conventions
+ *
+ * Two gateway URLs are used:
+ *   - API_GATEWAY_URL  → storefront domain (public/customer routes)
+ *   - API_ADMIN_URL    → admin subdomain  (all /admin/* routes)
+ *
+ * On VPS:
+ *   API_GATEWAY_URL=https://kilangdesamurnibatik.com
+ *   API_ADMIN_URL=https://admin.kilangdesamurnibatik.com
+ *
+ * Locally (all routes on same port):
+ *   Both default to http://localhost:80
  */
+
+const gw    = process.env.API_GATEWAY_URL || 'http://localhost:80';
+const admin = process.env.API_ADMIN_URL   || gw;
+
 export const testConfig = {
-    // Backend service base URLs
+    gatewayUrl: gw,
+    adminUrl: admin,
+
+    // Service base URLs
+    // IMPORTANT: trailing slash required so relative paths resolve correctly
+    // Public/customer routes go through storefront gateway
+    // Admin routes go through admin gateway
     services: {
-        auth:        { baseUrl: process.env.AUTH_URL        || 'http://localhost:8001/api/v1' },
-        catalog:     { baseUrl: process.env.CATALOG_URL     || 'http://localhost:8002/api/v1' },
-        order:       { baseUrl: process.env.ORDER_URL       || 'http://localhost:8003/api/v1' },
-        customer:    { baseUrl: process.env.CUSTOMER_URL    || 'http://localhost:8004/api/v1' },
-        inventory:   { baseUrl: process.env.INVENTORY_URL   || 'http://localhost:8005/api/v1' },
-        reporting:   { baseUrl: process.env.REPORTING_URL   || 'http://localhost:8007/api/v1' },
-        marketplace: { baseUrl: process.env.MARKETPLACE_URL || 'http://localhost:8008/api/v1' },
-        agent:       { baseUrl: process.env.AGENT_URL       || 'http://localhost:8009/api/v1' },
-        support:     { baseUrl: process.env.SUPPORT_URL     || 'http://localhost:8010/api/v1' },
+        auth:        { baseUrl: gw    + '/api/v1/' },
+        catalog:     { baseUrl: gw    + '/api/v1/' },
+        order:       { baseUrl: gw    + '/api/v1/' },
+        customer:    { baseUrl: gw    + '/api/v1/' },
+        inventory:   { baseUrl: gw    + '/api/v1/' },
+        reporting:   { baseUrl: admin + '/api/v1/' },
+        marketplace: { baseUrl: admin + '/api/v1/' },
+        agent:       { baseUrl: gw    + '/api/v1/' },
+        support:     { baseUrl: gw    + '/api/v1/' },
     },
 
-    // Test user credentials (must exist in DB via seed)
+    // Admin API base URL (for /admin/* routes like users, roles, settings)
+    adminApi: { baseUrl: admin + '/api/v1/' },
+
+    // Test user credentials (must exist in DB)
     users: {
         admin: {
-            email: process.env.TEST_ADMIN_EMAIL || 'e2e-admin@desamurnibatik.com',
-            password: process.env.TEST_ADMIN_PASSWORD || 'Admin123!@#',
+            email: process.env.TEST_ADMIN_EMAIL || 'admin@kilang.com',
+            password: process.env.TEST_ADMIN_PASSWORD || 'admin1234',
         },
         staff: {
             email: process.env.TEST_STAFF_EMAIL || 'e2e-staff@desamurnibatik.com',
             password: process.env.TEST_STAFF_PASSWORD || 'Admin123!@#',
         },
         customer: {
-            email: process.env.TEST_CUSTOMER_EMAIL || 'e2e-customer@desamurnibatik.com',
-            password: process.env.TEST_CUSTOMER_PASSWORD || 'Customer123!@#',
+            email: process.env.TEST_CUSTOMER_EMAIL || 'customer@kilang.com',
+            password: process.env.TEST_CUSTOMER_PASSWORD || 'Desamurni@7457',
         },
         agent: {
-            email: process.env.TEST_AGENT_EMAIL || 'e2e-agent@desamurnibatik.com',
-            password: process.env.TEST_AGENT_PASSWORD || 'Agent123!@#',
+            email: process.env.TEST_AGENT_EMAIL || 'nora@agentdm.com',
+            password: process.env.TEST_AGENT_PASSWORD || 'Desamurni@7457',
         },
     },
 

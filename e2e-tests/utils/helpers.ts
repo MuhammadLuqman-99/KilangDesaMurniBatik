@@ -84,7 +84,7 @@ export function generateTestData(type: string) {
                 address_line1: '123 Test Street',
                 city: 'Kuala Terengganu',
                 state: 'Terengganu',
-                postal_code: '20000',
+                postcode: '20000',
                 country: 'MY',
             };
         case 'order':
@@ -98,7 +98,7 @@ export function generateTestData(type: string) {
                     address_line1: '456 Order Street',
                     city: 'Kuala Lumpur',
                     state: 'WP KL',
-                    postal_code: '50000',
+                    postcode: '50000',
                     country: 'MY',
                 },
             };

@@ -7,10 +7,11 @@ import { extractData } from '../../utils/helpers';
  */
 
 test.describe('CMS Banners @P1', () => {
+    test.describe.configure({ mode: 'serial' });
     let createdBannerId: string | null = null;
 
     test('API-CAT-035: GET /cms/admin/banners — list banners', async ({ catalogApi }) => {
-        const res = await catalogApi.get('/cms/admin/banners');
+        const res = await catalogApi.get('cms/admin/banners');
         expect(res.status()).toBe(200);
 
         const json = await res.json();
@@ -29,7 +30,7 @@ test.describe('CMS Banners @P1', () => {
             sort_order: 999,
         };
 
-        const res = await catalogApi.post('/cms/admin/banners', { data: bannerData });
+        const res = await catalogApi.post('cms/admin/banners', { data: bannerData });
         expect([200, 201]).toContain(res.status());
 
         const json = await res.json();
@@ -40,7 +41,7 @@ test.describe('CMS Banners @P1', () => {
     test('API-CAT-037: PUT /cms/admin/banners/:id — update banner', async ({ catalogApi }) => {
         if (!createdBannerId) test.skip();
 
-        const res = await catalogApi.put(`/cms/admin/banners/${createdBannerId}`, {
+        const res = await catalogApi.put(`cms/admin/banners/${createdBannerId}`, {
             data: { name: 'E2E Updated Banner' },
         });
         expect([200, 204]).toContain(res.status());
@@ -49,20 +50,20 @@ test.describe('CMS Banners @P1', () => {
     test('API-CAT-038: DELETE /cms/admin/banners/:id — delete banner', async ({ catalogApi }) => {
         if (!createdBannerId) test.skip();
 
-        const res = await catalogApi.delete(`/cms/admin/banners/${createdBannerId}`);
+        const res = await catalogApi.delete(`cms/admin/banners/${createdBannerId}`);
         expect([200, 204]).toContain(res.status());
         createdBannerId = null;
     });
 
     test('API-CAT-039: GET /cms/admin/menus — list menus', async ({ catalogApi }) => {
-        const res = await catalogApi.get('/cms/admin/menus');
+        const res = await catalogApi.get('cms/admin/menus');
         expect(res.status()).toBe(200);
     });
 });
 
 test.describe('CMS Flash Sales @P1', () => {
     test('API-CAT-027: GET /flash-sales/active — get active flash sales', async ({ publicApi }) => {
-        const res = await publicApi.get('/flash-sales/active');
+        const res = await publicApi.get('flash-sales/active');
         expect([200, 404]).toContain(res.status());
     });
 
@@ -71,7 +72,7 @@ test.describe('CMS Flash Sales @P1', () => {
         const start = new Date(now.getTime() + 86400000).toISOString(); // Tomorrow
         const end = new Date(now.getTime() + 172800000).toISOString();  // Day after
 
-        const res = await catalogApi.post('/admin/flash-sales', {
+        const res = await catalogApi.post('admin/flash-sales', {
             data: {
                 name: `e2e-flash-sale-${Date.now()}`,
                 slug: `e2e-flash-${Date.now()}`,
@@ -87,7 +88,7 @@ test.describe('CMS Flash Sales @P1', () => {
             const json = await res.json();
             const data = extractData(json);
             if (data?.id) {
-                await catalogApi.delete(`/admin/flash-sales/${data.id}`);
+                await catalogApi.delete(`admin/flash-sales/${data.id}`);
             }
         }
     });
@@ -95,7 +96,7 @@ test.describe('CMS Flash Sales @P1', () => {
 
 test.describe('CMS Collections @P2', () => {
     test('API-CAT-031: GET /collections — list collections', async ({ publicApi }) => {
-        const res = await publicApi.get('/collections');
+        const res = await publicApi.get('collections');
         expect([200, 404]).toContain(res.status());
     });
 });

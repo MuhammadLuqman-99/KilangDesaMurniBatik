@@ -16,9 +16,9 @@ test.describe('Customer Profile @P0', () => {
         await expectStatus(res, 200, 'Customer profile');
 
         const json = await res.json();
-        const data = extractData(json);
-        const profile = data.user || data;
-        expect(profile.email, 'Profile email should match customer').toBeTruthy();
+        // Response may be { data: {...} } or { profile: {...} } or flat
+        const profile = json.data?.user || json.data || json.profile || json;
+        expect(profile.email, 'Profile should contain email').toBeTruthy();
     });
 
     test('API-CUS-003: GET /customer/profile — returns 401 without auth', async ({ publicApi }) => {
@@ -26,9 +26,9 @@ test.describe('Customer Profile @P0', () => {
         await expectError(res, 401);
     });
 
-    // RBAC: customer cannot access admin routes
-    test('API-CUS-RBAC-001: GET /admin/customers — customer token returns 401/403', async ({ customerApi }) => {
-        const res = await customerApi.get('admin/customers');
+    // RBAC: customer cannot access admin routes (must use admin domain)
+    test('API-CUS-RBAC-001: GET /admin/customers — customer token returns 401/403', async ({ customerOnAdminApi }) => {
+        const res = await customerOnAdminApi.get('admin/customers');
         expect([401, 403], 'Customer should not access admin routes').toContain(res.status());
     });
 });

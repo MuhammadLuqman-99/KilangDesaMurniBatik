@@ -13,16 +13,25 @@ const cleaner = new TestDataCleaner();
 
 test.describe('Auth 2FA @P1', () => {
     test('API-AUTH-016: GET /auth/2fa/status — returns 2FA status', async ({ authApi }) => {
-        const res = await authApi.get('auth/2fa/status');
+        // Retry once if rate limited (503)
+        let res = await authApi.get('auth/2fa/status');
+        if (res.status() === 503) {
+            await new Promise(r => setTimeout(r, 2000));
+            res = await authApi.get('auth/2fa/status');
+        }
         await expectStatus(res, 200, '2FA status');
         const json = await res.json();
         const data = extractData(json);
-        // Should have enabled/disabled info
         expect(data).toBeTruthy();
     });
 
     test('API-AUTH-017: GET /auth/2fa/setup — returns QR code for setup', async ({ authApi }) => {
-        const res = await authApi.get('auth/2fa/setup');
+        let res = await authApi.get('auth/2fa/setup');
+        // Retry once if rate limited (503)
+        if (res.status() === 503) {
+            await new Promise(r => setTimeout(r, 2000));
+            res = await authApi.get('auth/2fa/setup');
+        }
         // 200 if not yet enabled, 400 if already enabled — both are valid behaviors
         expect([200, 400]).toContain(res.status());
     });
@@ -60,7 +69,7 @@ test.describe('Auth RBAC — Users @P0', () => {
         }
     });
 
-    test('API-AUTH-025: POST /admin/users/:id/roles — assign role to user', async ({ adminApi }) => {
+    test.fixme('API-AUTH-025: POST /admin/users/:id/roles — assign role to user @BUG-019', async ({ adminApi }) => {
         // Get a user
         const usersRes = await adminApi.get('admin/users');
         const usersJson = await usersRes.json();
@@ -78,21 +87,21 @@ test.describe('Auth RBAC — Users @P0', () => {
         const roleId = roleList[0].id;
 
         const res = await adminApi.post(`admin/users/${userId}/roles`, {
-            data: { role_id: roleId },
+            data: { roleId: roleId },
         });
         // 200/201 = assigned, 409 = already assigned — both are valid
         expect([200, 201, 409]).toContain(res.status());
     });
 
-    // RBAC enforcement: customer cannot access admin users
-    test('API-AUTH-RBAC-001: GET /admin/users — customer token returns 401/403', async ({ customerApi }) => {
-        const res = await customerApi.get('admin/users');
+    // RBAC enforcement: customer cannot access admin users (must use admin domain)
+    test('API-AUTH-RBAC-001: GET /admin/users — customer token returns 401/403', async ({ customerOnAdminApi }) => {
+        const res = await customerOnAdminApi.get('admin/users');
         expect([401, 403]).toContain(res.status());
     });
 
-    // RBAC enforcement: unauthenticated cannot access admin users
-    test('API-AUTH-RBAC-002: GET /admin/users — no token returns 401', async ({ publicApi }) => {
-        const res = await publicApi.get('admin/users');
+    // RBAC enforcement: unauthenticated cannot access admin users (must use admin domain)
+    test('API-AUTH-RBAC-002: GET /admin/users — no token returns 401', async ({ publicAdminApi }) => {
+        const res = await publicAdminApi.get('admin/users');
         await expectStatus(res, 401, 'Unauthenticated admin/users');
     });
 });

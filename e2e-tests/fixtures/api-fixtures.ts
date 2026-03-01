@@ -36,8 +36,12 @@ interface ApiFixtures {
     supportApi: APIRequestContext;
     /** Authenticated API context for reporting (admin domain -- reports/*) */
     reportingApi: APIRequestContext;
+    /** Customer token on ADMIN domain — for RBAC tests (should be rejected by admin routes) */
+    customerOnAdminApi: APIRequestContext;
     /** Unauthenticated API context (storefront domain, no token) */
     publicApi: APIRequestContext;
+    /** Unauthenticated API context on ADMIN domain — for RBAC tests */
+    publicAdminApi: APIRequestContext;
     /** Admin JWT access token */
     adminToken: string;
     /** Customer JWT access token */
@@ -212,10 +216,27 @@ export const test = base.extend<ApiFixtures>({
         await ctx.dispose();
     },
 
+    // Customer token on ADMIN domain -- for RBAC enforcement tests
+    customerOnAdminApi: async ({ playwright, customerToken }, use) => {
+        const ctx = await createAuthContext(playwright, adminApiUrl, customerToken);
+        await use(ctx);
+        await ctx.dispose();
+    },
+
     // Public API -- storefront domain, no auth
     publicApi: async ({ playwright }, use) => {
         const ctx = await playwright.request.newContext({
             baseURL: storefrontApi,
+            extraHTTPHeaders: { 'Content-Type': 'application/json' },
+        });
+        await use(ctx);
+        await ctx.dispose();
+    },
+
+    // Public API on ADMIN domain -- no auth, for RBAC tests
+    publicAdminApi: async ({ playwright }, use) => {
+        const ctx = await playwright.request.newContext({
+            baseURL: adminApiUrl,
             extraHTTPHeaders: { 'Content-Type': 'application/json' },
         });
         await use(ctx);

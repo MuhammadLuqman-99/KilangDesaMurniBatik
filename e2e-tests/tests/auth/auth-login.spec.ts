@@ -117,10 +117,30 @@ test.describe('Auth Login @P0', () => {
         await ctx.dispose();
     });
 
-    test('API-AUTH-006: POST /auth/logout — invalidates token', async ({ authApi }) => {
-        const res = await authApi.post('auth/logout');
-        // Logout should succeed — either 200 (body) or 204 (no content)
+    test('API-AUTH-006: POST /auth/logout — invalidates token', async ({ playwright }) => {
+        // Use a fresh login so logout doesn't invalidate the shared admin token
+        const ctx = await playwright.request.newContext({
+            baseURL: testConfig.services.auth.baseUrl,
+        });
+        const loginRes = await ctx.post('auth/login', {
+            data: {
+                email: testConfig.users.admin.email,
+                password: testConfig.users.admin.password,
+            },
+        });
+        const loginJson = await loginRes.json();
+        const token = loginJson.data?.tokens?.access_token || loginJson.data?.token;
+        expect(token, 'Should get token for logout test').toBeTruthy();
+        await ctx.dispose();
+
+        // Logout with the fresh token
+        const authCtx = await playwright.request.newContext({
+            baseURL: testConfig.services.auth.baseUrl,
+            extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+        });
+        const res = await authCtx.post('auth/logout');
         expect([200, 204]).toContain(res.status());
+        await authCtx.dispose();
     });
 
     test('API-AUTH-007: POST /auth/refresh — valid refresh token returns new access token', async ({ playwright }) => {
@@ -196,7 +216,12 @@ test.describe('Auth Protected Routes @P0', () => {
             },
         });
 
-        const res = await ctx.get('auth/me');
+        let res = await ctx.get('auth/me');
+        // Retry once if rate limited (503)
+        if (res.status() === 503) {
+            await new Promise(r => setTimeout(r, 2000));
+            res = await ctx.get('auth/me');
+        }
         await expectError(res, 401);
         await ctx.dispose();
     });
@@ -209,15 +234,27 @@ test.describe('Auth Protected Routes @P0', () => {
     });
 
     test('API-AUTH-013: POST /auth/change-password — rejects wrong old password', async ({ authApi }) => {
-        const res = await authApi.post('auth/change-password', {
+        let res = await authApi.post('auth/change-password', {
             data: { old_password: 'WrongOldPassword!', new_password: 'NewPass123!@#' },
         });
+        // Retry once if rate limited (503)
+        if (res.status() === 503) {
+            await new Promise(r => setTimeout(r, 2000));
+            res = await authApi.post('auth/change-password', {
+                data: { old_password: 'WrongOldPassword!', new_password: 'NewPass123!@#' },
+            });
+        }
         // Wrong old password should be rejected as 400 (bad request)
         await expectStatus(res, 400, 'Wrong old password should be rejected');
     });
 
     test('API-AUTH-014: GET /auth/verify — token verification returns 200', async ({ authApi }) => {
-        const res = await authApi.get('auth/verify');
+        let res = await authApi.get('auth/verify');
+        // Retry once if rate limited (503)
+        if (res.status() === 503) {
+            await new Promise(r => setTimeout(r, 2000));
+            res = await authApi.get('auth/verify');
+        }
         await expectStatus(res, 200, 'Token verification');
     });
 });

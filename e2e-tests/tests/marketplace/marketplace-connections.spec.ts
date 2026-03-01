@@ -28,9 +28,9 @@ test.describe('Marketplace Connections @P1', () => {
         expect([200, 400]).toContain(res.status());
     });
 
-    // RBAC: customer cannot access marketplace
-    test('API-MKT-RBAC-001: GET /admin/marketplace/connections — customer returns 401/403', async ({ customerApi }) => {
-        const res = await customerApi.get('admin/marketplace/connections');
+    // RBAC: customer cannot access marketplace (must use admin domain)
+    test('API-MKT-RBAC-001: GET /admin/marketplace/connections — customer returns 401/403', async ({ customerOnAdminApi }) => {
+        const res = await customerOnAdminApi.get('admin/marketplace/connections');
         expect([401, 403], 'Customer should not access marketplace').toContain(res.status());
     });
 });

@@ -67,9 +67,9 @@ test.describe('Admin Orders @P1', () => {
         }
     });
 
-    // RBAC: customer cannot access admin orders
-    test('API-ORD-RBAC-001: GET /admin/orders — customer token returns 401/403', async ({ customerApi }) => {
-        const res = await customerApi.get('admin/orders');
+    // RBAC: customer cannot access admin orders (must use admin domain)
+    test('API-ORD-RBAC-001: GET /admin/orders — customer token returns 401/403', async ({ customerOnAdminApi }) => {
+        const res = await customerOnAdminApi.get('admin/orders');
         expect([401, 403], 'Customer should not access admin orders').toContain(res.status());
     });
 });

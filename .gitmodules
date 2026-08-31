@@ -1,6 +1,0 @@
-[submodule "service-support"]
-	path = service-support
-	url = https://github.com/KilangDesaMurniBatik/service-support.git
-[submodule "service-marketplace"]
-	path = service-marketplace
-	url = https://github.com/KilangDesaMurniBatik/service-marketplace.git

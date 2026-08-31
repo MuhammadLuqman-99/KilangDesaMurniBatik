@@ -991,43 +991,62 @@ type OrderRepository interface {
 
 ## 📁 Project Structure
 
-```
-KilangDesaMurniBatik/
-│
-├── frontend-admin/          # Admin Dashboard (Next.js 14)
-├── frontend-agent/          # Agent Portal (Next.js 14)
-├── frontend-storefront/     # Customer Store (Next.js 14)
-├── frontend-warehouse/      # Warehouse App (Next.js 14)
-│
-├── service-auth/            # Authentication Service (Go)
-│   ├── cmd/server/          # Entry point
-│   └── internal/
-│       ├── handlers/        # HTTP handlers
-│       ├── middleware/      # Auth middleware
-│       ├── models/          # Domain models
-│       ├── repository/      # Data access
-│       └── services/        # Business logic
-│
-├── service-catalog/         # Product Service (Go)
-├── service-order/           # Order Service (Go)
-├── service-agent/           # Agent Service (Go)
-├── service-inventory/       # Inventory Service (Go)
-├── service-marketplace/     # Marketplace Service (Go)
-├── service-notification/    # Notification Service (Go)
-├── service-reporting/       # Reporting Service (Go)
-├── service-customer/        # Customer Service (Go)
-├── service-support/         # Support Service (Go)
-│
-├── lib-common/              # Shared Go Libraries
-├── lib-ui/                  # Shared UI Components
-│
-├── infra-database/          # Database Migrations
-├── infra-platform/          # Docker Compose
-│
-├── docs/                    # Documentation
-│
-└── README.md
-```
+This repository is the **map**, not the code. The platform is 19 repositories in the
+[`KilangDesaMurniBatik`](https://github.com/KilangDesaMurniBatik) organisation, one per service, and they are
+private. Everything below is a description of that layout — cloning this repository gives you this README, the
+documentation in `docs/`, and nothing else.
+
+> Until 2026-08-31 this repository carried 19 git submodule pointers instead. They did not work: `.gitmodules`
+> declared only 2 of them, so the other 17 were dangling gitlinks that `git clone --recurse-submodules` could
+> not resolve; two pointed at repositories (`frontend-agent`, `kilang-docs`) that no longer exist; and because
+> the sources are private, even a correct set would have failed for anyone without organisation access. The
+> pointers are gone and this map replaces them.
+
+### Services — Go 1.24
+
+| Repository | Responsibility | Owns in `niaga_db` |
+|---|---|---|
+| `service-auth` | Login, JWT issue and refresh, users, RBAC roles and permissions | `auth` |
+| `service-catalog` | Products, variants, categories, collections, images, CMS content | `catalog`, `cms` |
+| `service-order` | Carts, orders, payments, invoices, returns, shipping | `sales`, `payments` |
+| `service-inventory` | Multi-warehouse stock, movements, transfers, low-stock alerts | `inventory` |
+| `service-customer` | CRM — customers, tiers, RFM segments, addresses, measurements | `customers`, `crm` |
+| `service-agent` | Sales agents, order wizard, teams, commissions | `agents` |
+| `service-marketplace` | Shopee and TikTok Shop sync — OAuth, product push, order pull, stock sync | `marketplace` |
+| `service-notification` | Email, SMS and push delivery from NATS events | — |
+| `service-reporting` | Sales analytics, dashboards, scheduled reports, exports | `analytics` |
+| `service-support` | Support tickets, categories, messages, SLA tracking | `support` |
+
+### Frontends — Next.js 14
+
+| Repository | Audience |
+|---|---|
+| `frontend-storefront` | The public shop |
+| `frontend-admin` | Back-office dashboard, served under `/admin` |
+| `frontend-warehouse` | Warehouse and stock operations |
+
+### Shared and infrastructure
+
+| Repository | What it is |
+|---|---|
+| `lib-common` | Shared Go: config, database and NATS helpers, auth middleware, logging, transactional outbox |
+| `lib-ui` | Shared React components and the Tailwind preset the three frontends build on |
+| `infra-database` | The schema for `niaga_db` — one snapshot per PostgreSQL schema, plus the loader |
+| `database` | Seeds, e2e fixtures and the admin bootstrap |
+| `infra-platform` | Docker Compose, the nginx routing table, deployment and backup scripts |
+| `bruno-tests` | Bruno smoke collection covering every HTTP service |
+
+### One database, one schema per service
+
+All ten services share a single PostgreSQL database, `niaga_db`, and each owns its own schema inside it —
+**135 tables, 73 foreign keys, 3 views, 68 functions**. `infra-database` holds the definition; no service
+migrates the schema itself.
+
+### Running it
+
+The services run from source against a shared local stack (PostgreSQL, Redis, NATS, MinIO, Meilisearch), with
+nginx in front on `:8080` routing `/api/v1/…` to the right service — the same routing table used in
+deployment. `infra-platform/docs/LOCAL_DEV.md` has the full sequence.
 
 ---
 

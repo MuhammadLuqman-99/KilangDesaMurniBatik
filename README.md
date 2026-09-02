@@ -1,8 +1,8 @@
-# Kilang Desa Murni Batik
+# Niaga
 
 <div align="center">
 
-### Enterprise E-Commerce Platform for Traditional Malaysian Batik
+### E-commerce platform behind a factory-direct dropship store
 
 [![Go](https://img.shields.io/badge/Go-1.24-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
@@ -40,12 +40,20 @@
 
 ## 🎯 Overview
 
-**Kilang Desa Murni Batik** is an enterprise-grade e-commerce platform designed specifically for selling traditional Malaysian Batik textiles. The platform serves multiple user types and integrates with major marketplaces.
+**Niaga** is an e-commerce platform: catalog, orders, payments, stock, marketplace sync and support, built as
+Go microservices behind three Next.js apps.
+
+It was built 2023–2026 as *Desa Murni Batik*, for one Malaysian batik factory, and renamed in 2026 when the
+product became a general store rather than an apparel one. The apparel-specific features — fabric designs,
+tailoring, body measurements, size guides — are still in the code, behind a feature flag and off by default.
+
+**What this page is not.** It describes the layout and the design. Where it names a feature, that feature is
+in the code; where something is legacy, a mock or unbuilt, it says so rather than leaving you to find out.
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                               ║
-║     🏭  KILANG DESA MURNI BATIK - Malaysian Batik E-Commerce Platform        ║
+║     🏭  NIAGA — E-Commerce Platform                                          ║
 ║                                                                               ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                               ║
@@ -53,11 +61,11 @@
 ║                                                                               ║
 ║     👔 ADMINISTRATORS   Manage products, process orders, verify payments     ║
 ║                                                                               ║
-║     💼 SALES AGENTS     Earn commissions, track sales, request payouts       ║
+║     💼 SALES AGENTS     Legacy — behind a flag, off by default               ║
 ║                                                                               ║
-║     📦 WAREHOUSE        Manage inventory, process shipments, stock alerts    ║
+║     📦 WAREHOUSE        Stock and alerts. The picking app is a mock          ║
 ║                                                                               ║
-║     🛒 MARKETPLACES     Sync with Shopee & TikTok Shop automatically         ║
+║     🛒 MARKETPLACES     Shopee & TikTok Shop. Auto-sync off by default       ║
 ║                                                                               ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -68,7 +76,7 @@
 |-----------|----------|
 | Manual order processing | Automated order workflow with status tracking |
 | Payment verification delays | Digital receipt upload with admin verification dashboard |
-| Agent commission tracking | Automated commission calculation and payout management |
+| Agent commission tracking | Automated commission calculation and payout management *(legacy — off by default)* |
 | Multi-channel selling | Unified dashboard for Shopee & TikTok Shop integration |
 | Inventory discrepancies | Real-time stock reservation and alerts |
 
@@ -992,13 +1000,13 @@ type OrderRepository interface {
 ## 📁 Project Structure
 
 This repository is the **map**, not the code. The platform is 19 repositories in the
-[`KilangDesaMurniBatik`](https://github.com/KilangDesaMurniBatik) organisation, one per service, and they are
-private. Everything below is a description of that layout — cloning this repository gives you this README, the
+[`niaga-labs`](https://github.com/niaga-labs) organisation (renamed from `KilangDesaMurniBatik` in 2026), one
+per service, and they are private. Everything below is a description of that layout — cloning this repository gives you this README, the
 documentation in `docs/`, and nothing else.
 
 > Until 2026-08-31 this repository carried 19 git submodule pointers instead. They did not work: `.gitmodules`
 > declared only 2 of them, so the other 17 were dangling gitlinks that `git clone --recurse-submodules` could
-> not resolve; two pointed at repositories (`frontend-agent`, `kilang-docs`) that no longer exist; and because
+> not resolve; two pointed at repositories that no longer exist; and because
 > the sources are private, even a correct set would have failed for anyone without organisation access. The
 > pointers are gone and this map replaces them.
 
@@ -1039,7 +1047,7 @@ documentation in `docs/`, and nothing else.
 ### One database, one schema per service
 
 All ten services share a single PostgreSQL database, `niaga_db`, and each owns its own schema inside it —
-**135 tables, 73 foreign keys, 3 views, 68 functions**. `infra-database` holds the definition; no service
+**17 schemas, 132 tables, 3 views, 73 foreign keys, 68 functions**. `infra-database` holds the definition; no service
 migrates the schema itself.
 
 ### Running it
@@ -1077,7 +1085,7 @@ deployment. `infra-platform/docs/LOCAL_DEV.md` has the full sequence.
 
 ## 📄 License
 
-This project is proprietary software developed for Kilang Desa Murni Batik.
+This project is proprietary software, developed by Niaga Labs (originally for the batik factory it was named after).
 
 ---
 
